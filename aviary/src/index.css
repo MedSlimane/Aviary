@@ -5,9 +5,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+   Aviary design tokens
+
+   The `--av-*` variables below are the source of truth and mirror the Figma
+   file 1:1 (Foundations → Aviary/Color). shadcn's own token names are then
+   aliased onto them, so every shadcn component inherits the design system
+   without being restyled individually.
+
+   Themes are classes on <html>. Dark-family themes must also carry `dark`:
+     <html class="dark">                     Dark
+     <html class="dark theme-aurora">        Aurora
+     <html class="dark theme-ember">         Ember
+     <html>                                  Light
+     <html class="theme-paper">              Paper
+--------------------------------------------------------------------------- */
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Inter Variable', sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+
+    /* shadcn surface tokens */
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +58,26 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+
+    /* Aviary-specific tokens with no shadcn equivalent */
+    --color-canvas: var(--av-bg-canvas);
+    --color-elevated: var(--av-bg-elevated);
+    --color-inset: var(--av-bg-inset);
+    --color-hover: var(--av-bg-hover);
+    --color-selected: var(--av-bg-selected);
+    --color-border-strong: var(--av-border-strong);
+    --color-tertiary: var(--av-text-tertiary);
+    --color-violet: var(--av-accent-violet);
+    --color-blue: var(--av-accent-blue);
+    --color-teal: var(--av-accent-teal);
+    --color-peach: var(--av-accent-peach);
+    --color-coral: var(--av-accent-coral);
+    --color-gold: var(--av-accent-gold);
+    --color-ok: var(--av-status-ok);
+    --color-warn: var(--av-status-warn);
+    --color-claude: var(--av-runner-claude);
+    --color-codex: var(--av-runner-codex);
+
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -48,86 +87,227 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* --- Light (default) ----------------------------------------------------- */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --av-bg-canvas: #f4f4f5;
+    --av-bg-surface: #ffffff;
+    --av-bg-elevated: #ffffff;
+    --av-bg-inset: #ebebed;
+    --av-bg-hover: #efeff1;
+    --av-bg-selected: #e6e6ea;
+    --av-border-subtle: #e4e4e7;
+    --av-border-strong: #d0d0d6;
+    --av-border-focus: #7c3aed;
+    --av-text-primary: #111113;
+    --av-text-secondary: #5c5c66;
+    --av-text-tertiary: #8a8a94;
+    --av-text-inverse: #ffffff;
+    --av-accent-violet: #7c3aed;
+    --av-accent-blue: #0284c7;
+    --av-accent-teal: #0d9488;
+    --av-accent-peach: #ea7c4d;
+    --av-accent-coral: #e11d48;
+    --av-accent-gold: #ca8a04;
+    --av-status-ok: #16a34a;
+    --av-status-warn: #d97706;
+    --av-status-error: #dc2626;
+    --av-runner-claude: #c2410c;
+    --av-runner-codex: #18181b;
+
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* --- Dark ---------------------------------------------------------------- */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --av-bg-canvas: #0a0a0b;
+    --av-bg-surface: #121214;
+    --av-bg-elevated: #1a1a1d;
+    --av-bg-inset: #08080a;
+    --av-bg-hover: #232326;
+    --av-bg-selected: #2a2a2f;
+    --av-border-subtle: #232326;
+    --av-border-strong: #34343a;
+    --av-border-focus: #a78bfa;
+    --av-text-primary: #f2f2f4;
+    --av-text-secondary: #9e9ea7;
+    --av-text-tertiary: #6a6a73;
+    --av-text-inverse: #0a0a0b;
+    --av-accent-violet: #a78bfa;
+    --av-accent-blue: #7dd3fc;
+    --av-accent-teal: #5eead4;
+    --av-accent-peach: #fdba9b;
+    --av-accent-coral: #fb7185;
+    --av-accent-gold: #fde68a;
+    --av-status-ok: #4ade80;
+    --av-status-warn: #fbbf24;
+    --av-status-error: #f87171;
+    --av-runner-claude: #d97757;
+    --av-runner-codex: #e8e8ea;
+}
+
+/* --- Aurora (violet-cast dark) ------------------------------------------- */
+.theme-aurora {
+    --av-bg-canvas: #0b0a12;
+    --av-bg-surface: #131120;
+    --av-bg-elevated: #1b1830;
+    --av-bg-inset: #08070e;
+    --av-bg-hover: #241f3c;
+    --av-bg-selected: #2c2648;
+    --av-border-subtle: #241f3c;
+    --av-border-strong: #3a3358;
+    --av-border-focus: #a78bfa;
+    --av-text-primary: #f1effa;
+    --av-text-secondary: #a39bc4;
+    --av-text-tertiary: #6e6890;
+    --av-text-inverse: #0b0a12;
+    --av-accent-violet: #b49dff;
+    --av-accent-blue: #8fd8ff;
+    --av-accent-teal: #6eefda;
+    --av-runner-claude: #e08b65;
+}
+
+/* --- Ember (warm dark) --------------------------------------------------- */
+.theme-ember {
+    --av-bg-canvas: #120c0a;
+    --av-bg-surface: #1b1310;
+    --av-bg-elevated: #241a15;
+    --av-bg-inset: #0d0806;
+    --av-bg-hover: #30231c;
+    --av-bg-selected: #3c2c23;
+    --av-border-subtle: #30231c;
+    --av-border-strong: #4a362b;
+    --av-border-focus: #fdba9b;
+    --av-text-primary: #faf0ea;
+    --av-text-secondary: #c4a99b;
+    --av-text-tertiary: #8c7365;
+    --av-text-inverse: #120c0a;
+    --av-accent-violet: #c4a5ff;
+    --av-accent-peach: #ffc9ac;
+    --av-accent-coral: #ff8497;
+    --av-accent-gold: #ffe9a3;
+    --av-status-ok: #5fe08f;
+    --av-status-warn: #ffc94d;
+    --av-status-error: #ff8a8a;
+    --av-runner-claude: #e8946b;
+    --av-runner-codex: #ede7e3;
+}
+
+/* --- Paper (warm light) -------------------------------------------------- */
+.theme-paper {
+    --av-bg-canvas: #f5f1e8;
+    --av-bg-surface: #fffdf7;
+    --av-bg-elevated: #ffffff;
+    --av-bg-inset: #ebe5d8;
+    --av-bg-hover: #ede7da;
+    --av-bg-selected: #e2daca;
+    --av-border-subtle: #e0d8c6;
+    --av-border-strong: #c9bfa8;
+    --av-border-focus: #7c3aed;
+    --av-text-primary: #1c1814;
+    --av-text-secondary: #5c5347;
+    --av-text-tertiary: #8a8072;
+    --av-text-inverse: #fffdf7;
+    --av-accent-violet: #6d28d9;
+    --av-accent-blue: #0369a1;
+    --av-accent-teal: #0f766e;
+    --av-accent-peach: #c2410c;
+    --av-accent-coral: #be123c;
+    --av-accent-gold: #a16207;
+    --av-status-ok: #15803d;
+    --av-status-warn: #b45309;
+    --av-status-error: #b91c1c;
+    --av-runner-claude: #b45309;
+    --av-runner-codex: #292524;
+}
+
+/* --- shadcn token aliases (theme-independent) ---------------------------- */
+:root,
+.dark,
+.theme-aurora,
+.theme-ember,
+.theme-paper {
+    --background: var(--av-bg-canvas);
+    --foreground: var(--av-text-primary);
+    --card: var(--av-bg-surface);
+    --card-foreground: var(--av-text-primary);
+    --popover: var(--av-bg-elevated);
+    --popover-foreground: var(--av-text-primary);
+
+    /* Primary is the inverted button: light on dark, dark on light */
+    --primary: var(--av-text-primary);
+    --primary-foreground: var(--av-text-inverse);
+
+    --secondary: var(--av-bg-hover);
+    --secondary-foreground: var(--av-text-primary);
+    --muted: var(--av-bg-hover);
+    --muted-foreground: var(--av-text-secondary);
+    --accent: var(--av-bg-selected);
+    --accent-foreground: var(--av-text-primary);
+    --destructive: var(--av-status-error);
+
+    --border: var(--av-border-subtle);
+    --input: var(--av-border-subtle);
+    --ring: var(--av-border-focus);
+
+    --chart-1: var(--av-accent-violet);
+    --chart-2: var(--av-accent-blue);
+    --chart-3: var(--av-accent-teal);
+    --chart-4: var(--av-accent-peach);
+    --chart-5: var(--av-accent-gold);
+
+    --sidebar: var(--av-bg-surface);
+    --sidebar-foreground: var(--av-text-secondary);
+    --sidebar-primary: var(--av-accent-violet);
+    --sidebar-primary-foreground: var(--av-text-primary);
+    --sidebar-accent: var(--av-bg-selected);
+    --sidebar-accent-foreground: var(--av-text-primary);
+    --sidebar-border: var(--av-border-subtle);
+    --sidebar-ring: var(--av-border-focus);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
-    }
+  }
   html {
-    @apply font-sans;
-    }
+    @apply font-sans antialiased;
+  }
+}
+
+/* --- Aviary surface utilities -------------------------------------------- */
+@layer components {
+  /* Near-black canvas with the dot grid from the design spec */
+  .av-canvas-dots {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--av-text-primary) 4%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 26px 26px;
+  }
+
+  /* Live frosted glass — restricted to small, transient surfaces only
+     (command palette, composer, status pills) per the performance contract. */
+  .av-glass {
+    background-color: color-mix(in oklab, white 8%, transparent);
+    border: 1px solid color-mix(in oklab, white 13%, transparent);
+    backdrop-filter: blur(44px) saturate(140%);
+    -webkit-backdrop-filter: blur(44px) saturate(140%);
+  }
+
+  /* Iridescent selection wash used on nav items and active segments */
+  .av-selected-wash {
+    background-image: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--av-accent-violet) 30%, transparent) 0%,
+      color-mix(in oklab, var(--av-accent-blue) 14%, transparent) 45%,
+      color-mix(in oklab, var(--av-accent-teal) 3%, transparent) 100%
+    );
+  }
 }

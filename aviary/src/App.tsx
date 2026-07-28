@@ -1,51 +1,89 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useEffect, useState } from "react";
+import { AppRail, NAV_ITEMS, type RouteId } from "@/components/app-rail";
+import { TitleBar } from "@/components/title-bar";
+import { ThemeProvider } from "@/lib/theme";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
+import { LibraryView } from "@/views/library";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
-
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
-
+function PlaceholderView({ route }: { route: RouteId }) {
+  const item = NAV_ITEMS.find((n) => n.id === route);
+  const label = item?.label ?? "Settings";
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <Empty className="flex-1">
+      <EmptyTitle>{label}</EmptyTitle>
+      <EmptyDescription>
+        This surface is designed in Figma and not built yet.
+      </EmptyDescription>
+    </Empty>
   );
 }
 
-export default App;
+function Shell() {
+  const [route, setRoute] = useState<RouteId>("library");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      <TitleBar onOpenPalette={() => setPaletteOpen(true)} />
+
+      <div className="flex min-h-0 flex-1">
+        <AppRail active={route} onNavigate={setRoute} />
+        <main className="av-canvas-dots min-w-0 flex-1 overflow-auto">
+          {route === "library" ? (
+            <LibraryView />
+          ) : (
+            <PlaceholderView route={route} />
+          )}
+        </main>
+      </div>
+
+      <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+        <CommandInput placeholder="Search prompts, skills, agents…" />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Go to">
+            {NAV_ITEMS.map((item) => (
+              <CommandItem
+                key={item.id}
+                value={item.label}
+                onSelect={() => {
+                  setRoute(item.id);
+                  setPaletteOpen(false);
+                }}
+              >
+                {item.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <Shell />
+    </ThemeProvider>
+  );
+}
