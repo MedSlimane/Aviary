@@ -5,8 +5,19 @@
 **Codename:** Aviary *(placeholder — name and mark are provisional)*
 
 **Figma:** [Aviary — Design System & Screens](https://www.figma.com/design/odzFIgPkY0H65N8dM8buq8)
-— cover, foundations (color/scale variables, type ramp, gradient families),
-components, four screens, and the brand sheet.
+
+| Page | Contents |
+|---|---|
+| 00 · Cover | Floral cover art + wordmark lockup |
+| 01 · Foundations | 4 gradient paint styles, 24 color variables × 5 modes (swatch boards for Dark and Light), scale variables, 12-step type ramp, elevation styles |
+| 02 · Components | Button, Chip, NavItem, SearchField, LibraryRow, BundleCard, ServerRow, Toggle, ContextLayer, PaletteRow + 16 HugeIcons — with TEXT / INSTANCE_SWAP properties |
+| 03 · Screens | Library, Chat, Chat (empty), Chat (voice input), MCP Servers, Context, Inspiration, Command Palette, Skill Editor |
+| 04 · Brand | Mark (solid / iridescent / on-light) + macOS app icon |
+| 05 · Themes | The Library screen rendered in all five color modes |
+
+**Color modes:** `Dark`, `Light`, `Aurora` (violet-cast dark), `Ember` (warm
+dark), `Paper` (warm light). Every surface, border and text color is variable-
+bound, so a screen re-themes by switching one mode on the frame.
 
 **Assets:** `assets/` — dependency-free SVG textures, floral art, brand marks,
 and `tokens.json`.
