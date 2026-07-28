@@ -10,7 +10,7 @@
 |---|---|
 | 00 · Cover | Floral cover art + wordmark lockup |
 | 01 · Foundations | 4 gradient paint styles, 24 color variables × 5 modes (swatch boards for Dark and Light), scale variables, 12-step type ramp, elevation styles |
-| 02 · Components | Button, Chip, NavItem, SearchField, LibraryRow, BundleCard, ServerRow, Toggle, ContextLayer, PaletteRow + 16 HugeIcons — with TEXT / INSTANCE_SWAP properties |
+| 02 · Components | 39 components and variant sets in labelled sections — Controls (Button, Chip, NavItem, Toggle, IconButton), Inputs (SearchField, Selector, Tab, Kbd), Rows (LibraryRow, ServerRow, ContextLayer, PaletteRow), Cards (BundleCard, PanelCard), Feedback (Banner ×3 tones, SectionLabel, SmallButton), Glass surfaces (ThinkingPill, GlassChip, SuggestionChip, RecordingPill, StopButton), plus 16 HugeIcons — all with TEXT / INSTANCE_SWAP properties |
 | 03 · Screens | Library, Chat, Chat (empty), Chat (voice input), MCP Servers, Context, Inspiration, Command Palette, Skill Editor |
 | 04 · Brand | Mark (solid / iridescent / on-light) + macOS app icon |
 | 05 · Themes | The Library screen rendered in all five color modes |
