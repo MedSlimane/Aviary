@@ -81,7 +81,7 @@ export function InspirationView() {
       <motion.div
         whileHover={{ y: -1 }}
         transition={{ type: "spring", stiffness: 480, damping: 30 }}
-        className="flex items-center gap-3.5 overflow-hidden rounded-[14px] border border-border bg-card p-1 pr-4"
+        className="av-hover-grad flex items-center gap-3.5 overflow-hidden rounded-[14px] border border-border bg-card p-1 pr-4"
       >
         <div
           className="h-12 w-[120px] shrink-0 rounded-[11px]"
@@ -101,7 +101,7 @@ export function InspirationView() {
       <div className="flex gap-3">
         {columns.map((col, ci) => (
           <div key={ci} className="flex flex-1 flex-col gap-3">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="popLayout" initial={false}>
               {col.map((t) => (
                 <motion.button
                   key={t.id}
@@ -119,7 +119,7 @@ export function InspirationView() {
                     })
                   }
                   className={cn(
-                    "w-full shrink-0 rounded-xl ring-1 ring-inset ring-white/[0.06]",
+                    "av-hover-ring w-full shrink-0 rounded-xl ring-1 ring-inset ring-white/[0.06]",
                   )}
                   style={{ height: t.h, backgroundImage: ART[t.art] }}
                 />

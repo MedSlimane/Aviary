@@ -115,7 +115,7 @@ export function LibraryView() {
           {BUNDLES.map((b) => (
             <article
               key={b.title}
-              className="overflow-hidden rounded-[14px] border border-border bg-card transition-colors hover:border-border-strong"
+              className="av-hover-grad av-hover-grad-strong overflow-hidden rounded-[14px] border border-border bg-card transition-colors hover:border-border-strong"
             >
               <div
                 className="h-[78px]"
@@ -142,7 +142,7 @@ export function LibraryView() {
               <button
                 key={e.name}
                 type="button"
-                className="flex w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 py-2.5 text-left transition-colors hover:border-border-strong hover:bg-elevated"
+                className="av-hover-grad flex w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 py-2.5 text-left transition-colors hover:border-border-strong"
               >
                 <span className="flex size-[30px] shrink-0 items-center justify-center rounded-lg bg-hover">
                   <HugeiconsIcon

@@ -26,7 +26,7 @@ export function TitleBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         <button
           type="button"
           onClick={onOpenPalette}
-          className="flex h-[34px] w-[360px] items-center gap-2 rounded-[10px] border border-border bg-elevated px-3 text-left text-[13px] text-tertiary transition-colors hover:border-border-strong"
+          className="av-hover-grad flex h-[34px] w-[360px] items-center gap-2 rounded-[10px] border border-border bg-elevated px-3 text-left text-[13px] text-tertiary transition-colors hover:border-border-strong"
         >
           <HugeiconsIcon icon={Search01Icon} size={15} strokeWidth={1.5} />
           <span className="flex-1 truncate">

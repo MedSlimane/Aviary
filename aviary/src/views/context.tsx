@@ -88,28 +88,16 @@ export function ContextView() {
       <div className="space-y-4 rounded-[14px] border border-border bg-card p-5">
         <div className="flex items-center gap-4">
           <div className="flex-1 space-y-1">
-            <motion.p
-              key={total}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className="text-[15px] font-semibold"
-            >
+            <p className="text-[15px] font-semibold">
               {total.toLocaleString()} tokens loaded before you type anything
-            </motion.p>
+            </p>
             <p className="text-xs text-muted-foreground">
               {pct}% of the 200K context window · {layers.length} layers
             </p>
           </div>
-          <motion.span
-            key={pct}
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 420, damping: 30 }}
-            className="font-mono text-[26px] font-semibold tabular-nums"
-          >
+          <span className="font-mono text-[26px] font-semibold tabular-nums">
             {pct}%
-          </motion.span>
+          </span>
         </div>
 
         {/* Stacked meter */}
@@ -118,8 +106,7 @@ export function ContextView() {
             <motion.div
               key={l.scope}
               layout
-              initial={{ flexGrow: 0, opacity: 0 }}
-              animate={{ flexGrow: l.tokens, opacity: 1 }}
+              animate={{ flexGrow: l.tokens }}
               transition={{ type: "spring", stiffness: 260, damping: 34 }}
               className="rounded-[3px]"
               style={{ backgroundColor: l.color, flexBasis: 0 }}
@@ -147,7 +134,7 @@ export function ContextView() {
           <StaggerRow
             key={l.scope}
             interactive={false}
-            className="flex items-center gap-3.5 rounded-[10px] border border-border bg-card px-3 py-2.5 transition-colors hover:border-border-strong"
+            className="av-hover-grad flex items-center gap-3.5 rounded-[10px] border border-border bg-card px-3 py-2.5 transition-colors hover:border-border-strong"
           >
             <span className="flex size-[22px] shrink-0 items-center justify-center rounded-md bg-hover font-mono text-[10px] text-muted-foreground">
               {i + 1}
@@ -168,9 +155,8 @@ export function ContextView() {
               <motion.span
                 className="block h-full rounded-full"
                 style={{ backgroundColor: l.color }}
-                initial={{ width: 0 }}
                 animate={{ width: `${(l.tokens / max) * 100}%` }}
-                transition={{ duration: 0.5, delay: 0.05 * i, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               />
             </span>
             <span className="w-14 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">

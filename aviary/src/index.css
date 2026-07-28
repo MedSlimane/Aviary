@@ -310,4 +310,78 @@
       color-mix(in oklab, var(--av-accent-teal) 3%, transparent) 100%
     );
   }
+
+  /* Animated iridescent hover background.
+
+     Painted on a ::before layer so it never disturbs the element's own
+     background or text. Only `opacity` and `background-position` animate,
+     both of which are compositor-friendly — no layout, no repaint of
+     children. The pan only runs while hovered. */
+  .av-hover-grad {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .av-hover-grad::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in oklab, var(--av-accent-violet) 55%, transparent) 0%,
+      color-mix(in oklab, var(--av-accent-blue) 42%, transparent) 28%,
+      color-mix(in oklab, var(--av-accent-teal) 34%, transparent) 52%,
+      color-mix(in oklab, var(--av-accent-peach) 42%, transparent) 76%,
+      color-mix(in oklab, var(--av-accent-violet) 55%, transparent) 100%
+    );
+    background-size: 300% 100%;
+    background-position: 0% 0;
+  }
+
+  .av-hover-grad:hover::before,
+  .av-hover-grad:focus-visible::before {
+    opacity: 0.16;
+    animation: av-grad-pan 7s linear infinite;
+  }
+
+  /* Stronger variant for large surfaces (cards, tiles) */
+  .av-hover-grad-strong:hover::before,
+  .av-hover-grad-strong:focus-visible::before {
+    opacity: 0.26;
+  }
+
+  @keyframes av-grad-pan {
+    to {
+      background-position: 300% 0;
+    }
+  }
+
+  /* Animated gradient border-glow for emphasised surfaces */
+  .av-hover-ring {
+    transition: box-shadow 0.2s ease-out;
+  }
+
+  .av-hover-ring:hover {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--av-accent-violet) 45%, transparent),
+      0 8px 26px -12px color-mix(in oklab, var(--av-accent-violet) 55%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av-hover-grad:hover::before,
+  .av-hover-grad:focus-visible::before {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

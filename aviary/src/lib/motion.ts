@@ -1,11 +1,11 @@
-import type { Transition, Variants } from "motion/react";
+import type { Transition } from "motion/react";
 
 /**
  * Motion vocabulary for Aviary.
  *
- * The design spec caps interactive-path animation at 300ms and requires
- * everything to respect prefers-reduced-motion. Springs are used for anything
- * the user directly manipulates; short eased tweens for incidental reveals.
+ * Deliberately narrow: motion is used ONLY for direct interaction feedback —
+ * hover, press, drag, toggle. Views and lists render instantly, because
+ * entry animation on navigation taxes every single trip through the app.
  */
 
 export const spring: Transition = {
@@ -23,38 +23,29 @@ export const springSnap: Transition = {
   mass: 0.5,
 };
 
-export const easeOut: Transition = { duration: 0.18, ease: [0.22, 1, 0.36, 1] };
+/** Shared-layout spring for selection pills sliding between options. */
+export const springLayout: Transition = {
+  type: "spring",
+  stiffness: 520,
+  damping: 38,
+};
 
-/** Press/hover feedback for any clickable surface. */
+/** Press/hover feedback for cards and rows. */
 export const pressable = {
   whileHover: { y: -1 },
   whileTap: { scale: 0.985, y: 0 },
   transition: springSnap,
 } as const;
 
-/** Subtle press for small controls where lift would look wrong. */
+/** Press feedback for small controls, where a lift would look wrong. */
 export const pressableFlat = {
   whileTap: { scale: 0.96 },
   transition: springSnap,
 } as const;
 
-/** Staggered list container. */
-export const listContainer: Variants = {
-  hidden: {},
-  show: {
-    transition: { staggerChildren: 0.028, delayChildren: 0.02 },
-  },
-};
-
-/** Individual row/card entering a staggered list. */
-export const listItem: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } },
-};
-
-/** Whole-view transition when switching routes. */
-export const viewTransition: Variants = {
-  hidden: { opacity: 0, y: 6 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } },
-  exit: { opacity: 0, y: -4, transition: { duration: 0.12 } },
-};
+/** Press feedback for icon buttons. */
+export const pressableIcon = {
+  whileHover: { scale: 1.06 },
+  whileTap: { scale: 0.92 },
+  transition: springSnap,
+} as const;

@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import * as motionReact from "motion/react";
 import { AppRail, NAV_ITEMS, type RouteId } from "@/components/app-rail";
 import { TitleBar } from "@/components/title-bar";
 import { ThemeProvider, THEMES, useTheme, type ThemeName } from "@/lib/theme";
-import { viewTransition } from "@/lib/motion";
 import {
   CommandDialog,
   CommandEmpty,
@@ -23,8 +21,6 @@ import { McpView } from "@/views/mcp";
 import { ContextView } from "@/views/context";
 import { InspirationView } from "@/views/inspiration";
 import { SettingsView } from "@/views/settings";
-
-const { motion, AnimatePresence } = motionReact;
 
 const LIBRARY_ITEMS = [
   { name: "design-taste-frontend", meta: "Skill · Claude Code" },
@@ -94,18 +90,7 @@ function Shell() {
           className={cnMain(isChat)}
           key="main"
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={route}
-              variants={viewTransition}
-              initial="hidden"
-              animate="show"
-              exit="exit"
-              className={isChat ? "h-full" : undefined}
-            >
-              {renderView()}
-            </motion.div>
-          </AnimatePresence>
+          <div className={isChat ? "h-full" : undefined}>{renderView()}</div>
         </main>
       </div>
 

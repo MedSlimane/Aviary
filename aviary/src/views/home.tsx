@@ -1,4 +1,3 @@
-import * as motionReact from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   SparklesIcon,
@@ -13,8 +12,6 @@ import {
   StaggerRow,
   StatusDot,
 } from "@/components/screen-parts";
-
-const { motion } = motionReact;
 
 const ART: Record<string, string> = {
   aurora: "linear-gradient(105deg, #2b2140, #5b4b9e 35%, #7c8fe0 70%, #bfd9f2)",
@@ -41,14 +38,9 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
   return (
     <div className="flex flex-col gap-[22px] p-[26px]">
       <div className="space-y-1">
-        <motion.h1
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.24 }}
-          className="text-[26px] font-semibold tracking-tight"
-        >
+        <h1 className="text-[26px] font-semibold tracking-tight">
           Good evening
-        </motion.h1>
+        </h1>
         <p className="text-xs text-muted-foreground">
           Claude Code and Codex are both healthy · last indexed 4 minutes ago
         </p>
@@ -60,7 +52,7 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
           <StaggerRow
             key={s.label}
             onClick={() => onNavigate(s.route)}
-            className="cursor-pointer rounded-[14px] border border-border bg-card p-4 transition-colors hover:border-border-strong hover:bg-elevated"
+            className="av-hover-grad cursor-pointer rounded-[14px] border border-border bg-card p-4 transition-colors hover:border-border-strong"
           >
             <HugeiconsIcon
               icon={s.icon}
@@ -83,7 +75,7 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
             <StaggerRow
               key={b.title}
               onClick={() => onNavigate("chat")}
-              className="cursor-pointer overflow-hidden rounded-[14px] border border-border bg-card transition-colors hover:border-border-strong"
+              className="av-hover-grad av-hover-grad-strong cursor-pointer overflow-hidden rounded-[14px] border border-border bg-card transition-colors hover:border-border-strong"
             >
               <div className="h-[78px]" style={{ backgroundImage: ART[b.art] }} />
               <div className="space-y-[3px] p-3.5">
@@ -108,7 +100,7 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
             <StaggerRow
               key={h.text}
               interactive={false}
-              className="flex items-center gap-3 rounded-[10px] border border-border bg-card px-3.5 py-2.5"
+              className="av-hover-grad flex items-center gap-3 rounded-[10px] border border-border bg-card px-3.5 py-2.5"
             >
               <StatusDot status={h.status} />
               <span className="min-w-0 flex-1 truncate text-[13px]">{h.text}</span>

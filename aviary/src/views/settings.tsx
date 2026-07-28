@@ -88,7 +88,7 @@ export function SettingsView() {
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 520, damping: 28 }}
                 className={cn(
-                  "relative space-y-2 rounded-xl border p-2 text-left transition-colors",
+                  "av-hover-grad relative space-y-2 rounded-xl border p-2 text-left transition-colors",
                   active
                     ? "border-violet"
                     : "border-border hover:border-border-strong",

@@ -8,7 +8,11 @@ import {
   Album02Icon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
+import * as motionReact from "motion/react";
 import { cn } from "@/lib/utils";
+import { pressableFlat } from "@/lib/motion";
+
+const { motion } = motionReact;
 
 export const NAV_ITEMS = [
   { id: "home", label: "Home", icon: Home01Icon },
@@ -56,16 +60,17 @@ export function AppRail({ active, onNavigate }: AppRailProps) {
       {NAV_ITEMS.map((item) => {
         const isActive = item.id === active;
         return (
-          <button
+          <motion.button
             key={item.id}
             type="button"
             onClick={() => onNavigate(item.id)}
             aria-current={isActive ? "page" : undefined}
+            {...pressableFlat}
             className={cn(
               "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
               isActive
                 ? "av-selected-wash bg-selected text-foreground ring-1 ring-inset ring-white/[0.07]"
-                : "text-muted-foreground hover:bg-hover hover:text-foreground",
+                : "av-hover-grad text-muted-foreground hover:text-foreground",
             )}
           >
             <HugeiconsIcon
@@ -75,20 +80,21 @@ export function AppRail({ active, onNavigate }: AppRailProps) {
               className="shrink-0"
             />
             <span className="truncate">{item.label}</span>
-          </button>
+          </motion.button>
         );
       })}
 
       <div className="flex-1" />
 
-      <button
+      <motion.button
         type="button"
         onClick={() => onNavigate("settings")}
+        {...pressableFlat}
         className={cn(
           "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
           active === "settings"
             ? "av-selected-wash bg-selected text-foreground ring-1 ring-inset ring-white/[0.07]"
-            : "text-muted-foreground hover:bg-hover hover:text-foreground",
+            : "av-hover-grad text-muted-foreground hover:text-foreground",
         )}
       >
         <HugeiconsIcon
@@ -98,7 +104,7 @@ export function AppRail({ active, onNavigate }: AppRailProps) {
           className="shrink-0"
         />
         <span className="truncate">Settings</span>
-      </button>
+      </motion.button>
     </nav>
   );
 }

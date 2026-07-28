@@ -90,7 +90,7 @@ export function ChatView() {
         )}
       >
         {/* Conversation */}
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="popLayout" initial={false}>
           {phase !== "empty" && phase !== "recording" && (
             <motion.div
               key="stream"
@@ -106,7 +106,7 @@ export function ChatView() {
               </div>
 
               <div className="space-y-2.5">
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                   {PILLS.slice(0, visiblePills).map((p) => (
                     <motion.div
                       key={p.label}
@@ -153,7 +153,7 @@ export function ChatView() {
         </AnimatePresence>
 
         {/* Greeting for the empty + recording states */}
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {centered && (
             <motion.div
               key="greeting"
@@ -232,7 +232,7 @@ export function ChatView() {
           </div>
 
           {/* Suggestions */}
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {phase === "empty" && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
