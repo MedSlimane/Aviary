@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="240" viewBox="0 0 800 240" role="img" aria-labelledby="title desc">
+  <title id="title">Tidal card texture</title>
+  <desc id="desc">A close teal, seafoam, mist, and pale-gold composition.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="1" x2="1" y2=".1"><stop stop-color="#185B69"/><stop offset=".3" stop-color="#399897"/><stop offset=".6" stop-color="#8ACDC0"/><stop offset=".82" stop-color="#DEE6B8"/><stop offset="1" stop-color="#F2D89E"/></linearGradient>
+    <radialGradient id="d"><stop stop-color="#3A93A0"/><stop offset=".45" stop-color="#145B69" stop-opacity=".9"/><stop offset="1" stop-color="#0B404D" stop-opacity="0"/></radialGradient>
+    <radialGradient id="s"><stop stop-color="#D4FFF4"/><stop offset=".4" stop-color="#72CCBC" stop-opacity=".91"/><stop offset="1" stop-color="#2A8686" stop-opacity="0"/></radialGradient>
+    <radialGradient id="m"><stop stop-color="#F8FFF2"/><stop offset=".38" stop-color="#CBE8DA" stop-opacity=".92"/><stop offset="1" stop-color="#8CC3BB" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g"><stop stop-color="#FFF2BE"/><stop offset=".42" stop-color="#E5CF91" stop-opacity=".83"/><stop offset="1" stop-color="#B8A46F" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop stop-color="#9AE8E5"/><stop offset=".42" stop-color="#47A5B5" stop-opacity=".65"/><stop offset="1" stop-color="#1E6F80" stop-opacity="0"/></radialGradient>
+    <filter id="b64" x="-35%" y="-100%" width="170%" height="300%"><feGaussianBlur stdDeviation="64"/></filter>
+    <filter id="b34" x="-30%" y="-90%" width="160%" height="280%"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="4" seed="71" stitchTiles="stitch" result="n"/><feColorMatrix in="n" values=".7 0 0 0 .12 0 .9 0 0 .05 0 0 .82 0 .08 0 0 0 .15 0" result="gn"/><feBlend in="SourceGraphic" in2="gn" mode="soft-light"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="800" height="240" fill="url(#base)"/>
+    <ellipse cx="0" cy="220" rx="250" ry="185" fill="url(#d)" filter="url(#b34)" opacity=".9" style="mix-blend-mode:multiply"/>
+    <ellipse cx="205" cy="25" rx="250" ry="155" fill="url(#b)" filter="url(#b64)" style="mix-blend-mode:screen"/>
+    <ellipse cx="410" cy="210" rx="265" ry="175" fill="url(#s)" filter="url(#b34)" style="mix-blend-mode:screen"/>
+    <ellipse cx="585" cy="10" rx="235" ry="150" fill="url(#m)" filter="url(#b64)" style="mix-blend-mode:screen"/>
+    <ellipse cx="805" cy="205" rx="250" ry="180" fill="url(#g)" filter="url(#b34)" opacity=".92" style="mix-blend-mode:screen"/>
+    <path d="M-75 195C125 70 280 200 450 80S705 25 870 65" fill="none" stroke="#EDFFF5" stroke-width="48" stroke-opacity=".38" stroke-linecap="round" filter="url(#b34)" style="mix-blend-mode:screen"/>
+  </g>
+</svg>

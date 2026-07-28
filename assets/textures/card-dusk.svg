@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="240" viewBox="0 0 800 240" role="img" aria-labelledby="title desc">
+  <title id="title">Dusk card texture</title>
+  <desc id="desc">A close indigo, violet, magenta, rose, and blue composition.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="1" x2="1" y2=".05"><stop stop-color="#11132D"/><stop offset=".28" stop-color="#292453"/><stop offset=".56" stop-color="#68336B"/><stop offset=".8" stop-color="#B34E78"/><stop offset="1" stop-color="#E48D98"/></linearGradient>
+    <radialGradient id="i"><stop stop-color="#5B58A3"/><stop offset=".42" stop-color="#29275C" stop-opacity=".95"/><stop offset="1" stop-color="#11132C" stop-opacity="0"/></radialGradient>
+    <radialGradient id="v"><stop stop-color="#B994FF"/><stop offset=".4" stop-color="#6948A1" stop-opacity=".87"/><stop offset="1" stop-color="#30225C" stop-opacity="0"/></radialGradient>
+    <radialGradient id="m"><stop stop-color="#FF90C4"/><stop offset=".4" stop-color="#C44E89" stop-opacity=".86"/><stop offset="1" stop-color="#66245B" stop-opacity="0"/></radialGradient>
+    <radialGradient id="r"><stop stop-color="#FFD1CA"/><stop offset=".4" stop-color="#EC8190" stop-opacity=".87"/><stop offset="1" stop-color="#AA3E63" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop stop-color="#98B9FF"/><stop offset=".4" stop-color="#536AB7" stop-opacity=".62"/><stop offset="1" stop-color="#263468" stop-opacity="0"/></radialGradient>
+    <filter id="b64" x="-35%" y="-100%" width="170%" height="300%"><feGaussianBlur stdDeviation="64"/></filter>
+    <filter id="b34" x="-30%" y="-90%" width="160%" height="280%"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".74" numOctaves="4" seed="79" stitchTiles="stitch" result="n"/><feColorMatrix in="n" values=".8 0 0 0 .08 0 .54 0 0 .08 0 0 .85 0 .05 0 0 0 .22 0" result="gn"/><feBlend in="SourceGraphic" in2="gn" mode="soft-light"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="800" height="240" fill="url(#base)"/>
+    <ellipse cx="0" cy="40" rx="245" ry="175" fill="url(#i)" filter="url(#b34)" style="mix-blend-mode:multiply"/>
+    <ellipse cx="220" cy="215" rx="260" ry="175" fill="url(#b)" filter="url(#b64)" style="mix-blend-mode:screen"/>
+    <ellipse cx="410" cy="5" rx="245" ry="155" fill="url(#v)" filter="url(#b34)" style="mix-blend-mode:screen"/>
+    <ellipse cx="625" cy="220" rx="260" ry="180" fill="url(#m)" filter="url(#b64)" style="mix-blend-mode:screen"/>
+    <ellipse cx="815" cy="25" rx="245" ry="165" fill="url(#r)" filter="url(#b34)" style="mix-blend-mode:screen"/>
+    <path d="M-75 200C140 50 285 210 465 70S720 15 880 70" fill="none" stroke="#D7BCFF" stroke-width="47" stroke-opacity=".33" stroke-linecap="round" filter="url(#b34)" style="mix-blend-mode:screen"/>
+  </g>
+</svg>

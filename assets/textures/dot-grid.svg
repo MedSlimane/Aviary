@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Subtle dark-canvas dot grid</title>
+  <desc id="desc">A seamless 64-pixel tile with low-contrast one-pixel dots.</desc>
+  <defs>
+    <radialGradient id="dot">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".16"/>
+      <stop offset=".55" stop-color="#CBD1E5" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#9EA8C7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="none"/>
+  <circle cx=".5" cy=".5" r="1.15" fill="url(#dot)"/>
+  <circle cx="32.5" cy="32.5" r="1.15" fill="url(#dot)"/>
+  <circle cx="64" cy="64" r="1.15" fill="url(#dot)"/>
+</svg>

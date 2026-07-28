@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400" role="img" aria-labelledby="title desc">
+  <title id="title">Ember golden-hour hero texture</title>
+  <desc id="desc">Peach, coral, amber, rose, and cream blooms with warm film grain.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1=".8" x2="1" y2=".2">
+      <stop offset="0" stop-color="#9E3857"/>
+      <stop offset=".24" stop-color="#E66B66"/>
+      <stop offset=".52" stop-color="#F6A75D"/>
+      <stop offset=".75" stop-color="#FFD68F"/>
+      <stop offset="1" stop-color="#F3A0B7"/>
+    </linearGradient>
+    <radialGradient id="peach"><stop stop-color="#FFF2D4"/><stop offset=".38" stop-color="#FFC486" stop-opacity=".96"/><stop offset="1" stop-color="#E66B66" stop-opacity="0"/></radialGradient>
+    <radialGradient id="coral"><stop stop-color="#FFB29B"/><stop offset=".4" stop-color="#F25F67" stop-opacity=".9"/><stop offset="1" stop-color="#B82D58" stop-opacity="0"/></radialGradient>
+    <radialGradient id="amber"><stop stop-color="#FFF3B2"/><stop offset=".38" stop-color="#FFBA4E" stop-opacity=".88"/><stop offset="1" stop-color="#D56F38" stop-opacity="0"/></radialGradient>
+    <radialGradient id="pink"><stop stop-color="#FFD5E4"/><stop offset=".38" stop-color="#E881A5" stop-opacity=".76"/><stop offset="1" stop-color="#B7366B" stop-opacity="0"/></radialGradient>
+    <radialGradient id="plum"><stop stop-color="#C85C76"/><stop offset=".5" stop-color="#8E294F" stop-opacity=".72"/><stop offset="1" stop-color="#6B214A" stop-opacity="0"/></radialGradient>
+    <filter id="b108" x="-35%" y="-110%" width="170%" height="320%"><feGaussianBlur stdDeviation="108"/></filter>
+    <filter id="b56" x="-30%" y="-90%" width="160%" height="280%"><feGaussianBlur stdDeviation="56"/></filter>
+    <filter id="glow" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="30"/><feColorMatrix type="saturate" values="1.18"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".68" numOctaves="4" seed="27" stitchTiles="stitch" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values=".9 0 0 0 .05  0 .78 0 0 .08  0 0 .65 0 .12  0 0 0 .18 0" result="warmNoise"/>
+      <feBlend in="SourceGraphic" in2="warmNoise" mode="soft-light"/>
+    </filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="1600" height="400" fill="url(#base)"/>
+    <ellipse cx="160" cy="40" rx="500" ry="270" fill="url(#pink)" filter="url(#b108)" opacity=".8" style="mix-blend-mode:screen"/>
+    <ellipse cx="480" cy="360" rx="520" ry="300" fill="url(#coral)" filter="url(#b56)" opacity=".9"/>
+    <ellipse cx="830" cy="70" rx="500" ry="260" fill="url(#peach)" filter="url(#b108)" opacity=".98" style="mix-blend-mode:screen"/>
+    <ellipse cx="1270" cy="260" rx="500" ry="290" fill="url(#amber)" filter="url(#b56)" opacity=".9" style="mix-blend-mode:screen"/>
+    <ellipse cx="1580" cy="30" rx="340" ry="250" fill="url(#pink)" filter="url(#b108)" opacity=".76" style="mix-blend-mode:soft-light"/>
+    <ellipse cx="-20" cy="430" rx="420" ry="240" fill="url(#plum)" filter="url(#b56)" opacity=".6" style="mix-blend-mode:multiply"/>
+    <path d="M-80 305C230 130 530 335 860 130S1330-5 1690 105" fill="none" stroke="#FFF4D3" stroke-opacity=".48" stroke-width="84" stroke-linecap="round" filter="url(#glow)" style="mix-blend-mode:screen"/>
+    <path d="M180 455C510 245 765 445 1100 250S1500 160 1700 230" fill="none" stroke="#FF8A8D" stroke-opacity=".35" stroke-width="112" stroke-linecap="round" filter="url(#b56)" style="mix-blend-mode:soft-light"/>
+  </g>
+  <rect width="1600" height="400" fill="none" stroke="#FFF8E8" stroke-opacity=".15"/>
+</svg>

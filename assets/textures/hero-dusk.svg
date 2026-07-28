@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400" role="img" aria-labelledby="title desc">
+  <title id="title">Dusk indigo hero texture</title>
+  <desc id="desc">Deep indigo, ultraviolet, magenta, and rose blooms for dark surfaces.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="1" x2="1" y2=".1">
+      <stop offset="0" stop-color="#14152F"/>
+      <stop offset=".25" stop-color="#272251"/>
+      <stop offset=".52" stop-color="#673369"/>
+      <stop offset=".77" stop-color="#B34E78"/>
+      <stop offset="1" stop-color="#E69098"/>
+    </linearGradient>
+    <radialGradient id="indigo"><stop stop-color="#5A54A4"/><stop offset=".42" stop-color="#29265B" stop-opacity=".93"/><stop offset="1" stop-color="#11142D" stop-opacity="0"/></radialGradient>
+    <radialGradient id="violet"><stop stop-color="#B78CFF"/><stop offset=".38" stop-color="#6845A1" stop-opacity=".84"/><stop offset="1" stop-color="#32235E" stop-opacity="0"/></radialGradient>
+    <radialGradient id="magenta"><stop stop-color="#FF8DC1"/><stop offset=".4" stop-color="#C54F8B" stop-opacity=".86"/><stop offset="1" stop-color="#6A265E" stop-opacity="0"/></radialGradient>
+    <radialGradient id="rose"><stop stop-color="#FFD0CC"/><stop offset=".38" stop-color="#EF8391" stop-opacity=".86"/><stop offset="1" stop-color="#B14367" stop-opacity="0"/></radialGradient>
+    <radialGradient id="blue"><stop stop-color="#95B6FF"/><stop offset=".4" stop-color="#5369B6" stop-opacity=".6"/><stop offset="1" stop-color="#27346B" stop-opacity="0"/></radialGradient>
+    <filter id="b108" x="-35%" y="-110%" width="170%" height="320%"><feGaussianBlur stdDeviation="108"/></filter>
+    <filter id="b55" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="55"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="4" seed="53" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values=".8 0 0 0 .08  0 .55 0 0 .08  0 0 .85 0 .05  0 0 0 .24 0" result="gn"/>
+      <feBlend in="SourceGraphic" in2="gn" mode="soft-light"/>
+    </filter>
+    <filter id="glow" x="-25%" y="-100%" width="150%" height="300%"><feGaussianBlur stdDeviation="27"/><feColorMatrix type="saturate" values="1.3"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="1600" height="400" fill="url(#base)"/>
+    <ellipse cx="40" cy="40" rx="480" ry="300" fill="url(#indigo)" filter="url(#b55)" opacity=".98" style="mix-blend-mode:multiply"/>
+    <ellipse cx="410" cy="370" rx="500" ry="300" fill="url(#blue)" filter="url(#b108)" opacity=".75" style="mix-blend-mode:screen"/>
+    <ellipse cx="790" cy="60" rx="470" ry="260" fill="url(#violet)" filter="url(#b55)" opacity=".88" style="mix-blend-mode:screen"/>
+    <ellipse cx="1180" cy="360" rx="500" ry="300" fill="url(#magenta)" filter="url(#b108)" opacity=".86" style="mix-blend-mode:screen"/>
+    <ellipse cx="1540" cy="60" rx="400" ry="260" fill="url(#rose)" filter="url(#b55)" opacity=".86" style="mix-blend-mode:screen"/>
+    <ellipse cx="1440" cy="470" rx="440" ry="260" fill="url(#indigo)" filter="url(#b108)" opacity=".62" style="mix-blend-mode:multiply"/>
+    <path d="M-150 345C230 125 520 345 860 135S1370-35 1740 80" fill="none" stroke="#D4BAFF" stroke-opacity=".33" stroke-width="74" stroke-linecap="round" filter="url(#glow)" style="mix-blend-mode:screen"/>
+    <path d="M100 470C430 265 730 445 1080 255S1480 170 1690 240" fill="none" stroke="#FF799F" stroke-opacity=".29" stroke-width="108" stroke-linecap="round" filter="url(#b55)" style="mix-blend-mode:screen"/>
+  </g>
+  <rect width="1600" height="400" fill="none" stroke="#FFD5EA" stroke-opacity=".11"/>
+</svg>

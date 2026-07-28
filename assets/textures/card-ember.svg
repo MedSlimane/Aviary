@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="240" viewBox="0 0 800 240" role="img" aria-labelledby="title desc">
+  <title id="title">Ember card texture</title>
+  <desc id="desc">A close peach, coral, amber, cream, and rose composition.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1=".8" x2="1" y2=".2"><stop stop-color="#A43958"/><stop offset=".28" stop-color="#EB7169"/><stop offset=".58" stop-color="#F6AA61"/><stop offset=".82" stop-color="#FFD794"/><stop offset="1" stop-color="#EF94B2"/></linearGradient>
+    <radialGradient id="r"><stop stop-color="#FFB5A4"/><stop offset=".42" stop-color="#EE5967" stop-opacity=".91"/><stop offset="1" stop-color="#A92F57" stop-opacity="0"/></radialGradient>
+    <radialGradient id="a"><stop stop-color="#FFF1B8"/><stop offset=".38" stop-color="#FFB74D" stop-opacity=".88"/><stop offset="1" stop-color="#DF6D3E" stop-opacity="0"/></radialGradient>
+    <radialGradient id="p"><stop stop-color="#FFF6DF"/><stop offset=".4" stop-color="#FFC988" stop-opacity=".93"/><stop offset="1" stop-color="#F17C66" stop-opacity="0"/></radialGradient>
+    <radialGradient id="k"><stop stop-color="#FFD0E0"/><stop offset=".42" stop-color="#E77FA7" stop-opacity=".76"/><stop offset="1" stop-color="#A6326D" stop-opacity="0"/></radialGradient>
+    <radialGradient id="d"><stop stop-color="#C95D75"/><stop offset=".45" stop-color="#7E274E" stop-opacity=".63"/><stop offset="1" stop-color="#5D2147" stop-opacity="0"/></radialGradient>
+    <filter id="b64" x="-35%" y="-100%" width="170%" height="300%"><feGaussianBlur stdDeviation="64"/></filter>
+    <filter id="b34" x="-30%" y="-90%" width="160%" height="280%"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="4" seed="67" stitchTiles="stitch" result="n"/><feColorMatrix in="n" values=".9 0 0 0 .05 0 .75 0 0 .08 0 0 .65 0 .1 0 0 0 .17 0" result="g"/><feBlend in="SourceGraphic" in2="g" mode="soft-light"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="800" height="240" fill="url(#base)"/>
+    <ellipse cx="20" cy="225" rx="245" ry="175" fill="url(#d)" filter="url(#b34)" opacity=".66" style="mix-blend-mode:multiply"/>
+    <ellipse cx="175" cy="65" rx="250" ry="160" fill="url(#r)" filter="url(#b64)" opacity=".94"/>
+    <ellipse cx="390" cy="205" rx="270" ry="175" fill="url(#p)" filter="url(#b34)" style="mix-blend-mode:screen"/>
+    <ellipse cx="595" cy="15" rx="245" ry="160" fill="url(#a)" filter="url(#b64)" opacity=".93" style="mix-blend-mode:screen"/>
+    <ellipse cx="810" cy="185" rx="250" ry="180" fill="url(#k)" filter="url(#b34)" style="mix-blend-mode:soft-light"/>
+    <path d="M-60 180C140 55 285 205 455 75S700 30 860 75" fill="none" stroke="#FFF0CF" stroke-width="52" stroke-opacity=".46" stroke-linecap="round" filter="url(#b34)" style="mix-blend-mode:screen"/>
+  </g>
+</svg>

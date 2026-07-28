@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Coarse monochrome film grain</title>
+  <desc id="desc">A seamless transparent larger-particle grain overlay at approximately eight percent opacity.</desc>
+  <defs>
+    <filter id="coarse" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".19" numOctaves="3" seed="211" stitchTiles="stitch" result="large"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".48" numOctaves="2" seed="37" stitchTiles="stitch" result="small"/>
+      <feBlend in="large" in2="small" mode="multiply" result="mixed"/>
+      <feColorMatrix in="mixed" type="saturate" values="0" result="mono"/>
+      <feComponentTransfer in="mono">
+        <feFuncR type="linear" slope="2.5" intercept="-.7"/>
+        <feFuncG type="linear" slope="2.5" intercept="-.7"/>
+        <feFuncB type="linear" slope="2.5" intercept="-.7"/>
+        <feFuncA type="table" tableValues="0 .08"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="#FFFFFF" filter="url(#coarse)"/>
+</svg>

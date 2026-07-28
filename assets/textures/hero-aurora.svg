@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400" role="img" aria-labelledby="title desc">
+  <title id="title">Aurora iridescent hero texture</title>
+  <desc id="desc">A violet, blue, pearl, and coral atmospheric sweep with fine film grain.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4E38A7"/>
+      <stop offset=".28" stop-color="#8D7AE8"/>
+      <stop offset=".57" stop-color="#75B9F0"/>
+      <stop offset=".78" stop-color="#E5ECFF"/>
+      <stop offset="1" stop-color="#FFF8F0"/>
+    </linearGradient>
+    <radialGradient id="violet">
+      <stop offset="0" stop-color="#B9A5FF"/>
+      <stop offset=".45" stop-color="#7C5CE2" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#5035A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue">
+      <stop offset="0" stop-color="#D9F3FF"/>
+      <stop offset=".32" stop-color="#73C6F3" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#4E70DC" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pearl">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset=".38" stop-color="#F5F2FF" stop-opacity=".92"/>
+      <stop offset="1" stop-color="#FFF7EC" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coral">
+      <stop offset="0" stop-color="#FFD7C5"/>
+      <stop offset=".45" stop-color="#F6A9C2" stop-opacity=".58"/>
+      <stop offset="1" stop-color="#DC8BBF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="aqua">
+      <stop offset="0" stop-color="#BFF9F1"/>
+      <stop offset=".42" stop-color="#86D8E9" stop-opacity=".62"/>
+      <stop offset="1" stop-color="#71A6E5" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur110" x="-30%" y="-100%" width="160%" height="300%">
+      <feGaussianBlur stdDeviation="110"/>
+    </filter>
+    <filter id="blur62" x="-30%" y="-100%" width="160%" height="300%">
+      <feGaussianBlur stdDeviation="62"/>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="4" seed="18" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .20 0" result="ng"/>
+      <feBlend in="SourceGraphic" in2="ng" mode="soft-light"/>
+    </filter>
+    <filter id="sheen" x="-20%" y="-100%" width="140%" height="300%">
+      <feGaussianBlur stdDeviation="26" result="b"/>
+      <feColorMatrix in="b" type="saturate" values="1.2"/>
+    </filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="1600" height="400" fill="url(#base)"/>
+    <ellipse cx="140" cy="350" rx="520" ry="330" fill="url(#violet)" filter="url(#blur62)" opacity=".96"/>
+    <ellipse cx="600" cy="70" rx="510" ry="255" fill="url(#blue)" filter="url(#blur110)" opacity=".92" style="mix-blend-mode:screen"/>
+    <ellipse cx="1070" cy="130" rx="450" ry="250" fill="url(#pearl)" filter="url(#blur62)" opacity=".98" style="mix-blend-mode:screen"/>
+    <ellipse cx="1450" cy="390" rx="430" ry="300" fill="url(#coral)" filter="url(#blur110)" opacity=".7" style="mix-blend-mode:soft-light"/>
+    <ellipse cx="1040" cy="390" rx="450" ry="170" fill="url(#aqua)" filter="url(#blur62)" opacity=".64" style="mix-blend-mode:screen"/>
+    <path d="M-120 370C270 165 520 305 820 115S1370-65 1720 48" fill="none" stroke="#FFFFFF" stroke-opacity=".44" stroke-width="82" stroke-linecap="round" filter="url(#sheen)" style="mix-blend-mode:screen"/>
+    <path d="M90 475C450 255 720 420 1000 235S1450 115 1660 185" fill="none" stroke="#A58DFF" stroke-opacity=".31" stroke-width="100" stroke-linecap="round" filter="url(#blur62)" style="mix-blend-mode:soft-light"/>
+  </g>
+  <rect width="1600" height="400" fill="none" stroke="#FFFFFF" stroke-opacity=".14"/>
+</svg>

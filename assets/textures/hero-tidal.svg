@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400" role="img" aria-labelledby="title desc">
+  <title id="title">Tidal seafoam hero texture</title>
+  <desc id="desc">A tranquil teal, seafoam, mist, and pale-gold atmospheric field.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#195E6B"/>
+      <stop offset=".25" stop-color="#3C9B9A"/>
+      <stop offset=".5" stop-color="#8BCFC3"/>
+      <stop offset=".76" stop-color="#DCE7BD"/>
+      <stop offset="1" stop-color="#F3DBA5"/>
+    </linearGradient>
+    <radialGradient id="deep"><stop stop-color="#3D91A0"/><stop offset=".45" stop-color="#176273" stop-opacity=".85"/><stop offset="1" stop-color="#104755" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sea"><stop stop-color="#D1FFF2"/><stop offset=".4" stop-color="#75CFC0" stop-opacity=".9"/><stop offset="1" stop-color="#2C8D8C" stop-opacity="0"/></radialGradient>
+    <radialGradient id="mist"><stop stop-color="#F6FFF4"/><stop offset=".36" stop-color="#CDEBE1" stop-opacity=".92"/><stop offset="1" stop-color="#9CCEC4" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gold"><stop stop-color="#FFF4C7"/><stop offset=".42" stop-color="#E8D39A" stop-opacity=".82"/><stop offset="1" stop-color="#BFAB77" stop-opacity="0"/></radialGradient>
+    <radialGradient id="blue"><stop stop-color="#9EE7E7"/><stop offset=".4" stop-color="#4FA9BB" stop-opacity=".63"/><stop offset="1" stop-color="#217688" stop-opacity="0"/></radialGradient>
+    <filter id="b106" x="-35%" y="-110%" width="170%" height="320%"><feGaussianBlur stdDeviation="106"/></filter>
+    <filter id="b58" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="58"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".76" numOctaves="4" seed="41" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values=".72 0 0 0 .12  0 .9 0 0 .05  0 0 .84 0 .08  0 0 0 .16 0" result="gn"/>
+      <feBlend in="SourceGraphic" in2="gn" mode="soft-light"/>
+    </filter>
+    <filter id="sheen" x="-20%" y="-90%" width="140%" height="280%"><feGaussianBlur stdDeviation="24"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="1600" height="400" fill="url(#base)"/>
+    <ellipse cx="90" cy="360" rx="500" ry="310" fill="url(#deep)" filter="url(#b58)" opacity=".88" style="mix-blend-mode:multiply"/>
+    <ellipse cx="460" cy="55" rx="480" ry="250" fill="url(#blue)" filter="url(#b106)" opacity=".9" style="mix-blend-mode:screen"/>
+    <ellipse cx="800" cy="380" rx="500" ry="270" fill="url(#sea)" filter="url(#b58)" opacity=".95" style="mix-blend-mode:screen"/>
+    <ellipse cx="1120" cy="65" rx="440" ry="250" fill="url(#mist)" filter="url(#b106)" opacity=".94" style="mix-blend-mode:screen"/>
+    <ellipse cx="1500" cy="325" rx="450" ry="290" fill="url(#gold)" filter="url(#b58)" opacity=".88" style="mix-blend-mode:screen"/>
+    <ellipse cx="1390" cy="-60" rx="330" ry="210" fill="url(#sea)" filter="url(#b106)" opacity=".6" style="mix-blend-mode:soft-light"/>
+    <path d="M-130 330C230 175 500 300 790 145S1320-15 1730 70" fill="none" stroke="#E9FFF4" stroke-opacity=".39" stroke-width="78" stroke-linecap="round" filter="url(#sheen)" style="mix-blend-mode:screen"/>
+    <path d="M60 475C380 250 710 445 1050 260S1480 180 1660 245" fill="none" stroke="#BBDCB8" stroke-opacity=".34" stroke-width="116" stroke-linecap="round" filter="url(#b58)" style="mix-blend-mode:soft-light"/>
+  </g>
+  <rect width="1600" height="400" fill="none" stroke="#F2FFF8" stroke-opacity=".14"/>
+</svg>

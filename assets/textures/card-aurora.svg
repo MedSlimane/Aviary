@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="240" viewBox="0 0 800 240" role="img" aria-labelledby="title desc">
+  <title id="title">Aurora card texture</title>
+  <desc id="desc">A close violet, blue, pearl, and coral iridescent composition.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#5C3FB5"/><stop offset=".32" stop-color="#917DE9"/><stop offset=".65" stop-color="#80C7F0"/><stop offset="1" stop-color="#F8F3FF"/></linearGradient>
+    <radialGradient id="v"><stop stop-color="#CBBEFF"/><stop offset=".4" stop-color="#7653D7" stop-opacity=".88"/><stop offset="1" stop-color="#51349E" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop stop-color="#E0F7FF"/><stop offset=".36" stop-color="#68BDEB" stop-opacity=".9"/><stop offset="1" stop-color="#4C75D3" stop-opacity="0"/></radialGradient>
+    <radialGradient id="p"><stop stop-color="#FFFFFF"/><stop offset=".38" stop-color="#F5EBFF" stop-opacity=".96"/><stop offset="1" stop-color="#FFF6ED" stop-opacity="0"/></radialGradient>
+    <radialGradient id="c"><stop stop-color="#FFD4C6"/><stop offset=".45" stop-color="#EE9EC3" stop-opacity=".66"/><stop offset="1" stop-color="#B878C0" stop-opacity="0"/></radialGradient>
+    <radialGradient id="t"><stop stop-color="#C7FFF2"/><stop offset=".42" stop-color="#6FCEDB" stop-opacity=".56"/><stop offset="1" stop-color="#4A97CE" stop-opacity="0"/></radialGradient>
+    <filter id="b64" x="-35%" y="-100%" width="170%" height="300%"><feGaussianBlur stdDeviation="64"/></filter>
+    <filter id="b34" x="-30%" y="-90%" width="160%" height="280%"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".82" numOctaves="4" seed="61" stitchTiles="stitch" result="n"/><feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .18 0" result="g"/><feBlend in="SourceGraphic" in2="g" mode="soft-light"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <rect width="800" height="240" fill="url(#base)"/>
+    <ellipse cx="30" cy="200" rx="250" ry="190" fill="url(#v)" filter="url(#b34)"/>
+    <ellipse cx="235" cy="25" rx="250" ry="155" fill="url(#b)" filter="url(#b64)" style="mix-blend-mode:screen"/>
+    <ellipse cx="465" cy="180" rx="270" ry="170" fill="url(#t)" filter="url(#b34)" opacity=".78" style="mix-blend-mode:screen"/>
+    <ellipse cx="595" cy="15" rx="235" ry="150" fill="url(#p)" filter="url(#b64)" style="mix-blend-mode:screen"/>
+    <ellipse cx="810" cy="210" rx="245" ry="175" fill="url(#c)" filter="url(#b34)" opacity=".82" style="mix-blend-mode:soft-light"/>
+    <path d="M-70 210C130 68 280 215 455 85S720 20 875 60" fill="none" stroke="#FFF" stroke-width="50" stroke-opacity=".42" stroke-linecap="round" filter="url(#b34)" style="mix-blend-mode:screen"/>
+  </g>
+</svg>
