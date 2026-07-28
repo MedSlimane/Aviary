@@ -1,0 +1,4 @@
+assets/_codex-report.md
+node_modules/
+target/
+.DS_Store
