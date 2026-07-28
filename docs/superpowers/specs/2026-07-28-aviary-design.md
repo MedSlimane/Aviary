@@ -4,6 +4,13 @@
 **Status:** Approved (design), pending implementation plan
 **Codename:** Aviary *(placeholder — name and mark are provisional)*
 
+**Figma:** [Aviary — Design System & Screens](https://www.figma.com/design/odzFIgPkY0H65N8dM8buq8)
+— cover, foundations (color/scale variables, type ramp, gradient families),
+components, four screens, and the brand sheet.
+
+**Assets:** `assets/` — dependency-free SVG textures, floral art, brand marks,
+and `tokens.json`.
+
 ---
 
 ## 1. Vision
