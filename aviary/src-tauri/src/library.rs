@@ -108,9 +108,36 @@ pub fn scan() -> LibrarySnapshot {
     }
 }
 
-/// Reads an entry's file content for the editor.
-pub fn read_entry(path: &str) -> Result<String, String> {
-    std::fs::read_to_string(path).map_err(|e| e.to_string())
+#[derive(Debug, Serialize)]
+pub struct EntryContent {
+    pub raw: String,
+    /// Body with the frontmatter block removed.
+    pub body: String,
+    /// The raw frontmatter block, if present.
+    pub frontmatter: Option<String>,
+    /// Real token count via tiktoken, not a byte heuristic.
+    pub tokens: usize,
+}
+
+/// Reads an entry's content, splitting frontmatter off the body.
+///
+/// Parsing happens here rather than in the UI because the providers already
+/// depend on gray_matter — no reason to ship a second parser to the client.
+pub fn read_entry(path: &str) -> Result<EntryContent, String> {
+    let raw = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+
+    let matter = gray_matter::Matter::<gray_matter::engine::YAML>::new();
+    let (frontmatter, body) = match matter.parse::<serde_json::Value>(&raw) {
+        Ok(p) => (p.matter.is_empty().then(|| None).unwrap_or(Some(p.matter)), p.content),
+        Err(_) => (None, raw.clone()),
+    };
+
+    Ok(EntryContent {
+        tokens: crate::tokens::count(&raw),
+        raw,
+        body,
+        frontmatter,
+    })
 }
 
 #[cfg(test)]
@@ -136,5 +163,30 @@ mod tests {
             );
         }
         assert!(!snap.entries.is_empty(), "expected to find real entries");
+    }
+}
+
+#[cfg(test)]
+mod read_tests {
+    use super::*;
+
+    #[test]
+    fn reads_a_real_skill() {
+        let snap = scan();
+        let skill = snap
+            .entries
+            .iter()
+            .find(|e| matches!(e.kind, crate::providers::Kind::Skill))
+            .expect("expected at least one skill");
+
+        let c = read_entry(&skill.path).expect("should read");
+        eprintln!("entry:       {}", skill.name);
+        eprintln!("bytes:       {}", skill.bytes);
+        eprintln!("tokens:      {}", c.tokens);
+        eprintln!("frontmatter: {}", c.frontmatter.is_some());
+        eprintln!("body chars:  {}", c.body.len());
+        assert!(c.tokens > 0, "tokeniser returned nothing");
+        assert!(!c.body.is_empty(), "body was empty");
+        assert!(!c.body.starts_with("---"), "frontmatter not split off");
     }
 }

@@ -346,6 +346,84 @@
     );
   }
 
+  /* Rendered markdown in the entry detail panel. react-markdown emits plain
+     semantic HTML, so the typography is applied here rather than per-element. */
+  .av-markdown > :first-child { margin-top: 0; }
+  .av-markdown h1,
+  .av-markdown h2,
+  .av-markdown h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 1.4em 0 0.5em;
+  }
+  .av-markdown h1 { font-size: 1.25em; }
+  .av-markdown h2 { font-size: 1.12em; }
+  .av-markdown h3 { font-size: 1em; }
+  .av-markdown p,
+  .av-markdown ul,
+  .av-markdown ol,
+  .av-markdown blockquote { margin: 0.75em 0; }
+  .av-markdown ul { list-style: disc; padding-left: 1.25em; }
+  .av-markdown ol { list-style: decimal; padding-left: 1.25em; }
+  .av-markdown li { margin: 0.25em 0; }
+  .av-markdown a { color: var(--av-accent-violet); text-decoration: underline; }
+  .av-markdown strong { font-weight: 600; }
+  .av-markdown blockquote {
+    border-left: 2px solid var(--av-border-strong);
+    padding-left: 0.9em;
+    color: var(--av-text-secondary);
+  }
+  .av-markdown code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--av-bg-hover);
+    padding: 0.12em 0.36em;
+    border-radius: 4px;
+  }
+  .av-markdown pre {
+    background: var(--av-bg-inset);
+    border: 1px solid var(--av-border-subtle);
+    border-radius: 10px;
+    padding: 0.75rem;
+    overflow-x: auto;
+    margin: 0.9em 0;
+  }
+  .av-markdown pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.82em;
+    line-height: 1.6;
+  }
+  .av-markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.9em 0;
+    font-size: 0.92em;
+  }
+  .av-markdown th,
+  .av-markdown td {
+    border: 1px solid var(--av-border-subtle);
+    padding: 0.4em 0.6em;
+    text-align: left;
+  }
+  .av-markdown th { background: var(--av-bg-hover); font-weight: 600; }
+  .av-markdown hr {
+    border: 0;
+    border-top: 1px solid var(--av-border-subtle);
+    margin: 1.2em 0;
+  }
+
+  /* highlight.js tokens, mapped onto the Aviary accents */
+  .av-markdown .hljs-keyword,
+  .av-markdown .hljs-selector-tag { color: var(--av-accent-violet); }
+  .av-markdown .hljs-string,
+  .av-markdown .hljs-attr { color: var(--av-accent-teal); }
+  .av-markdown .hljs-number,
+  .av-markdown .hljs-literal { color: var(--av-accent-peach); }
+  .av-markdown .hljs-comment { color: var(--av-text-tertiary); font-style: italic; }
+  .av-markdown .hljs-title,
+  .av-markdown .hljs-name { color: var(--av-accent-blue); }
+
   /* Animated iridescent hover background.
 
      Painted on a ::before layer so it never disturbs the element's own

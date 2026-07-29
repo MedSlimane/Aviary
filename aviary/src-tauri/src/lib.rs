@@ -1,9 +1,10 @@
 mod discovery;
 mod library;
 mod providers;
+mod tokens;
 
 use discovery::DiscoveryResult;
-use library::{LibrarySnapshot, Project};
+use library::{EntryContent, LibrarySnapshot, Project};
 
 #[tauri::command]
 fn scan_library() -> LibrarySnapshot {
@@ -11,8 +12,13 @@ fn scan_library() -> LibrarySnapshot {
 }
 
 #[tauri::command]
-fn read_entry(path: String) -> Result<String, String> {
+fn read_entry(path: String) -> Result<EntryContent, String> {
     library::read_entry(&path)
+}
+
+#[tauri::command]
+fn count_tokens(path: String) -> usize {
+    tokens::count_file(&path)
 }
 
 #[tauri::command]
@@ -62,6 +68,7 @@ pub fn run() {
             scan_library,
             discover_projects,
             read_entry,
+            count_tokens,
             list_projects,
             add_project,
             remove_project

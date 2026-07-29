@@ -29,6 +29,7 @@ import { useLibrary } from "@/lib/use-library";
 import { RUNNER_LABEL, type Entry, type Kind, type Runner } from "@/lib/api";
 import { PageHeader, SectionLabel, Segmented } from "@/components/screen-parts";
 import { notify } from "@/lib/notify";
+import { EntryDetail } from "@/components/entry-detail";
 import { cn } from "@/lib/utils";
 
 const KIND_META: Record<Kind, { icon: typeof SparklesIcon; color: string }> = {
@@ -76,16 +77,30 @@ function tilde(p: string) {
   return p.replace(/^\/Users\/[^/]+/, "~");
 }
 
-function EntryRow({ entry, density }: { entry: Entry; density: Density }) {
+function EntryRow({
+  entry,
+  density,
+  selected,
+  onSelect,
+}: {
+  entry: Entry;
+  density: Density;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   const meta = KIND_META[entry.kind];
   const compact = density === "Compact";
 
   return (
     <button
       type="button"
-      onClick={() => notify(entry.name, { description: tilde(entry.path) })}
+      onClick={onSelect}
+      aria-current={selected ? "true" : undefined}
       className={cn(
-        "av-hover-grad flex w-full items-center gap-3 rounded-[10px] border border-border bg-card text-left transition-colors hover:border-border-strong",
+        "av-hover-grad flex w-full items-center gap-3 rounded-[10px] border text-left transition-colors",
+        selected
+          ? "av-selected-wash border-violet/40 bg-selected"
+          : "border-border bg-card hover:border-border-strong",
         compact ? "px-3 py-1.5" : "px-3 py-2.5",
       )}
     >
@@ -162,6 +177,7 @@ export function LibraryView() {
   const [sortBy, setSortBy] = useState<SortBy>("Name");
   const [showPlugins, setShowPlugins] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Entry | null>(null);
 
   const visible = useMemo(() => {
     if (!data) return [];
@@ -216,7 +232,8 @@ export function LibraryView() {
       : "Could not scan";
 
   return (
-    <div className="flex flex-col gap-[18px] p-[26px]">
+    <div className="flex h-full min-h-0 gap-4 p-[26px]">
+      <div className="flex min-w-0 flex-1 flex-col gap-[18px] overflow-y-auto pr-1">
       <PageHeader
         title="Library"
         subtitle={subtitle}
@@ -314,7 +331,15 @@ export function LibraryView() {
                 {!isCollapsed && (
                   <div className={cn(density === "Compact" ? "space-y-1" : "space-y-1.5")}>
                     {rows.map((e) => (
-                      <EntryRow key={e.id} entry={e} density={density} />
+                      <EntryRow
+                        key={e.id}
+                        entry={e}
+                        density={density}
+                        selected={selected?.id === e.id}
+                        onSelect={() =>
+                          setSelected((cur) => (cur?.id === e.id ? null : e))
+                        }
+                      />
                     ))}
                   </div>
                 )}
@@ -328,6 +353,11 @@ export function LibraryView() {
             </p>
           )}
         </div>
+      )}
+      </div>
+
+      {selected && (
+        <EntryDetail entry={selected} onClose={() => setSelected(null)} />
       )}
     </div>
   );

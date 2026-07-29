@@ -61,8 +61,20 @@ export async function scanLibrary(): Promise<LibrarySnapshot> {
   };
 }
 
-export function readEntry(path: string): Promise<string> {
-  return invoke<string>("read_entry", { path });
+export type EntryContent = {
+  raw: string;
+  body: string;
+  frontmatter: string | null;
+  /** Real count via tiktoken (o200k_base), not a byte heuristic. */
+  tokens: number;
+};
+
+export function readEntry(path: string): Promise<EntryContent> {
+  return invoke<EntryContent>("read_entry", { path });
+}
+
+export function countTokens(path: string): Promise<number> {
+  return invoke<number>("count_tokens", { path });
 }
 
 export function listProjects(): Promise<Project[]> {
