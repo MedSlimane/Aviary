@@ -17,6 +17,12 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ReasoningLevel {
+    pub effort: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ModelOption {
     /// Passed to `--model` / `-m`. `None` means send no flag at all.
     pub id: Option<String>,
@@ -24,6 +30,11 @@ pub struct ModelOption {
     pub note: String,
     /// Aliases track the newest model in a family, so they never go stale.
     pub is_alias: bool,
+    /// Effort levels this model accepts, lowest first. Empty when the runner
+    /// does not expose the notion.
+    pub reasoning_levels: Vec<ReasoningLevel>,
+    /// The level used when none is chosen.
+    pub default_effort: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,6 +44,67 @@ pub struct ModelCatalogue {
     pub configured_default: Option<String>,
     /// Where the list came from, so the UI can be honest about staleness.
     pub source: String,
+}
+
+/// Reads the effort levels out of `claude --help`.
+///
+/// Parsed rather than hardcoded for the same reason the model list is: the
+/// set changes, and the CLI is the only thing that knows the current one.
+/// Cached because spawning the binary is not free.
+fn claude_effort_levels() -> Vec<ReasoningLevel> {
+    static LEVELS: std::sync::OnceLock<Vec<ReasoningLevel>> = std::sync::OnceLock::new();
+    LEVELS
+        .get_or_init(|| {
+            let help = std::process::Command::new("claude")
+                .arg("--help")
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default();
+
+            // "--effort <level>  Effort level for the current session (low, medium, high, xhigh, max)"
+            let found = help
+                .split("--effort")
+                .nth(1)
+                .and_then(|tail| {
+                    let open = tail.find('(')?;
+                    let close = tail[open..].find(')')? + open;
+                    Some(tail[open + 1..close].to_string())
+                })
+                .map(|inner| {
+                    inner
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty() && !s.contains(' '))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            let descriptions = |e: &str| match e {
+                "low" => "Fast responses with lighter reasoning",
+                "medium" => "Balances speed and depth for everyday tasks",
+                "high" => "Greater depth for complex problems",
+                "xhigh" => "Extra depth for complex problems",
+                "max" => "Maximum depth for the hardest problems",
+                _ => "",
+            };
+
+            found
+                .into_iter()
+                .map(|e| ReasoningLevel {
+                    description: descriptions(&e).to_string(),
+                    effort: e,
+                })
+                .collect()
+        })
+        .clone()
+}
+
+fn claude_effort_default() -> Option<String> {
+    let path = crate::providers::home()?.join(".claude/settings.json");
+    let raw = std::fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    v.get("effortLevel")?.as_str().map(String::from)
 }
 
 fn claude_configured_default() -> Option<String> {
@@ -54,6 +126,9 @@ fn claude_catalogue() -> ModelCatalogue {
         ("fable", "Fable", "Newest frontier family"),
     ];
 
+    let levels = claude_effort_levels();
+    let effort_default = claude_effort_default();
+
     let mut models = vec![ModelOption {
         id: None,
         label: "Default".into(),
@@ -62,6 +137,8 @@ fn claude_catalogue() -> ModelCatalogue {
             .map(|m| format!("Your CLI setting — currently {m}"))
             .unwrap_or_else(|| "Whatever your CLI is set to".into()),
         is_alias: false,
+        reasoning_levels: levels.clone(),
+        default_effort: effort_default.clone(),
     }];
 
     models.extend(aliases.iter().map(|(id, label, note)| ModelOption {
@@ -69,6 +146,8 @@ fn claude_catalogue() -> ModelCatalogue {
         label: (*label).to_string(),
         note: (*note).to_string(),
         is_alias: true,
+        reasoning_levels: levels.clone(),
+        default_effort: effort_default.clone(),
     }));
 
     ModelCatalogue {
@@ -93,6 +172,8 @@ fn codex_catalogue() -> ModelCatalogue {
             .map(|m| format!("Your config.toml setting — currently {m}"))
             .unwrap_or_else(|| "Whatever your config is set to".into()),
         is_alias: false,
+        reasoning_levels: Vec::new(),
+        default_effort: None,
     }];
 
     // The CLI maintains this itself, so it stays current without our help.
@@ -123,6 +204,28 @@ fn codex_catalogue() -> ModelCatalogue {
                         .and_then(|d| d.as_str())
                         .unwrap_or_default()
                         .to_string(),
+                    reasoning_levels: m
+                        .get("supported_reasoning_levels")
+                        .and_then(|l| l.as_array())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|lv| {
+                                    Some(ReasoningLevel {
+                                        effort: lv.get("effort")?.as_str()?.to_string(),
+                                        description: lv
+                                            .get("description")
+                                            .and_then(|d| d.as_str())
+                                            .unwrap_or_default()
+                                            .to_string(),
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    default_effort: m
+                        .get("default_reasoning_level")
+                        .and_then(|d| d.as_str())
+                        .map(String::from),
                     id: Some(slug),
                     is_alias: false,
                 })
@@ -165,5 +268,23 @@ mod tests {
             eprintln!("  {:<18} {:?}", m.label, m.id);
         }
         assert!(x.models.len() > 1, "expected models from the live cache");
+
+        let sol = x.models.iter().find(|m| m.id.as_deref() == Some("gpt-5.6-sol"));
+        if let Some(sol) = sol {
+            eprintln!(
+                "  sol levels: {:?} default={:?}",
+                sol.reasoning_levels.iter().map(|l| &l.effort).collect::<Vec<_>>(),
+                sol.default_effort
+            );
+            assert!(!sol.reasoning_levels.is_empty());
+        }
+
+        let opus = c.models.iter().find(|m| m.id.as_deref() == Some("opus")).unwrap();
+        eprintln!(
+            "  claude levels: {:?} default={:?}",
+            opus.reasoning_levels.iter().map(|l| &l.effort).collect::<Vec<_>>(),
+            opus.default_effort
+        );
+        assert!(!opus.reasoning_levels.is_empty(), "effort levels should parse from --help");
     }
 }

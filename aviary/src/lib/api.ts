@@ -237,6 +237,7 @@ export async function runTurn(
   mode: PermissionMode,
   cwd: string | null,
   model: string | null,
+  effort: string | null,
   onEvent: (e: TurnEvent) => void,
 ): Promise<void> {
   const channel = new Channel<RawEvent>();
@@ -247,15 +248,21 @@ export async function runTurn(
     cwd,
     mode,
     model,
+    effort,
     channel,
   });
 }
+
+export type ReasoningLevel = { effort: string; description: string };
 
 export type ModelOption = {
   id: string | null;
   label: string;
   note: string;
   isAlias: boolean;
+  /** Effort levels this model accepts, lowest first. */
+  reasoningLevels: ReasoningLevel[];
+  defaultEffort: string | null;
 };
 
 export type ModelCatalogue = {
@@ -264,7 +271,11 @@ export type ModelCatalogue = {
   source: string;
 };
 
-type RawModel = Omit<ModelOption, "isAlias"> & { is_alias: boolean };
+type RawModel = Omit<ModelOption, "isAlias" | "reasoningLevels" | "defaultEffort"> & {
+  is_alias: boolean;
+  reasoning_levels: ReasoningLevel[];
+  default_effort: string | null;
+};
 
 export async function listModels(runner: Runner): Promise<ModelCatalogue> {
   const raw = await invoke<{
@@ -275,6 +286,11 @@ export async function listModels(runner: Runner): Promise<ModelCatalogue> {
   return {
     configuredDefault: raw.configured_default,
     source: raw.source,
-    models: raw.models.map(({ is_alias, ...m }) => ({ ...m, isAlias: is_alias })),
+    models: raw.models.map(({ is_alias, reasoning_levels, default_effort, ...m }) => ({
+      ...m,
+      isAlias: is_alias,
+      reasoningLevels: reasoning_levels,
+      defaultEffort: default_effort,
+    })),
   };
 }

@@ -44,10 +44,11 @@ async fn run_turn(
     cwd: Option<String>,
     mode: runner::PermissionMode,
     model: Option<String>,
+    effort: Option<String>,
     channel: tauri::ipc::Channel<runner::Event>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        runner::run_turn(runner, prompt, cwd, mode, model, channel)
+        runner::run_turn(runner, prompt, cwd, mode, model, effort, channel)
     })
     .await
     .map_err(|e| e.to_string())?

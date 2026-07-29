@@ -168,6 +168,7 @@ pub fn run_turn(
     cwd: Option<String>,
     mode: PermissionMode,
     model: Option<String>,
+    effort: Option<String>,
     channel: Channel<Event>,
 ) -> Result<(), String> {
     let mut cmd = match runner {
@@ -185,6 +186,9 @@ pub fn run_turn(
             if let Some(m) = model.as_deref() {
                 c.arg("--model").arg(m);
             }
+            if let Some(e) = effort.as_deref() {
+                c.arg("--effort").arg(e);
+            }
             c
         }
         Runner::Codex => {
@@ -192,6 +196,10 @@ pub fn run_turn(
             c.arg("exec").arg("--json");
             if let Some(m) = model.as_deref() {
                 c.arg("-m").arg(m);
+            }
+            // Codex takes effort as a config override rather than a flag.
+            if let Some(e) = effort.as_deref() {
+                c.arg("-c").arg(format!("model_reasoning_effort=\"{e}\""));
             }
             // Codex has no equivalent mode flag; the read-only sandbox is the
             // closest analogue to plan.

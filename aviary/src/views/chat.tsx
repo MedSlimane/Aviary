@@ -28,6 +28,7 @@ import {
   type ModelOption,
 } from "@/lib/api";
 import { Input } from "@/components/ui/input";
+import { EffortSlider } from "@/components/effort-slider";
 import { LabMark, RUNNER_LAB } from "@/lib/lab-marks";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
@@ -89,7 +90,10 @@ export function ChatView() {
     label: "Default",
     note: "",
     isAlias: false,
+    reasoningLevels: [],
+    defaultEffort: null,
   });
+  const [effort, setEffort] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [running, setRunning] = useState(false);
@@ -112,6 +116,7 @@ export function ChatView() {
         if (cancelled) return;
         setCatalogue(c);
         setModel(c.models[0]);
+        setEffort(c.models[0]?.defaultEffort ?? null);
       })
       .catch(() => {});
     return () => {
@@ -135,7 +140,7 @@ export function ChatView() {
     setRunning(true);
 
     try {
-      await runTurn(runner, prompt, mode, null, model.id, (e: TurnEvent) => {
+      await runTurn(runner, prompt, mode, null, model.id, effort, (e: TurnEvent) => {
         switch (e.kind) {
           case "started":
             setSession({ model: e.model, tools: e.tools, mcpServers: e.mcpServers });
@@ -170,7 +175,7 @@ export function ChatView() {
     } finally {
       setRunning(false);
     }
-  }, [value, running, runner, mode, model]);
+  }, [value, running, runner, mode, model, effort]);
 
   const empty = messages.length === 0;
 
@@ -283,7 +288,12 @@ export function ChatView() {
                 runner={runner}
                 catalogue={catalogue}
                 model={model}
-                onChange={setModel}
+                effort={effort}
+                onChange={(m) => {
+                  setModel(m);
+                  setEffort(m.defaultEffort ?? null);
+                }}
+                onEffortChange={setEffort}
               />
               <ModePicker mode={mode} onChange={setMode} />
               <div className="flex-1" />
@@ -494,12 +504,16 @@ function ModelPicker({
   runner,
   catalogue,
   model,
+  effort,
   onChange,
+  onEffortChange,
 }: {
   runner: Runner;
   catalogue: ModelCatalogue | null;
   model: ModelOption;
+  effort: string | null;
   onChange: (m: ModelOption) => void;
+  onEffortChange: (e: string) => void;
 }) {
   const [custom, setCustom] = useState("");
   const models = catalogue?.models ?? [];
@@ -509,9 +523,22 @@ function ModelPicker({
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass-2 transition-colors hover:text-on-glass">
         <LabMark runner={runner} className="size-[13px]" />
         {model.label}
+        {effort && (
+          <span className="capitalize text-on-glass-3">{effort}</span>
+        )}
         <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[320px]">
+        {model.reasoningLevels.length > 1 && effort && (
+          <div className="border-b border-border px-2 pb-3 pt-2">
+            <EffortSlider
+              levels={model.reasoningLevels}
+              value={effort}
+              onChange={onEffortChange}
+            />
+          </div>
+        )}
+
         <DropdownMenuRadioGroup
           value={model.id ?? "__default"}
           onValueChange={(v) => {
@@ -563,6 +590,8 @@ function ModelPicker({
                   label: custom.trim(),
                   note: "Entered manually",
                   isAlias: false,
+                  reasoningLevels: model.reasoningLevels,
+                  defaultEffort: model.defaultEffort,
                 });
                 setCustom("");
               }
