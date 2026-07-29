@@ -99,7 +99,7 @@ export function Segmented<T extends string>({
             {active && (
               <motion.span
                 layoutId={layoutId}
-                className="av-selected-wash absolute inset-0 rounded-[7px] bg-selected ring-1 ring-inset ring-white/[0.07]"
+                className="av-selected-wash absolute inset-0 rounded-[7px] bg-selected ring-1 ring-inset ring-glass-border"
                 transition={springLayout}
               />
             )}

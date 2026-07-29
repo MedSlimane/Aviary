@@ -119,7 +119,7 @@ export function InspirationView() {
                     })
                   }
                   className={cn(
-                    "av-hover-ring w-full shrink-0 rounded-xl ring-1 ring-inset ring-white/[0.06]",
+                    "av-hover-ring w-full shrink-0 rounded-xl ring-1 ring-inset ring-glass-border",
                   )}
                   style={{ height: t.h, backgroundImage: ART[t.art] }}
                 />

@@ -69,7 +69,7 @@ export function AppRail({ active, onNavigate }: AppRailProps) {
             className={cn(
               "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
               isActive
-                ? "av-selected-wash bg-selected text-foreground ring-1 ring-inset ring-white/[0.07]"
+                ? "av-selected-wash bg-selected text-foreground ring-1 ring-inset ring-glass-border"
                 : "av-hover-grad text-muted-foreground hover:text-foreground",
             )}
           >
@@ -93,7 +93,7 @@ export function AppRail({ active, onNavigate }: AppRailProps) {
         className={cn(
           "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
           active === "settings"
-            ? "av-selected-wash bg-selected text-foreground ring-1 ring-inset ring-white/[0.07]"
+            ? "av-selected-wash bg-selected text-foreground ring-1 ring-inset ring-glass-border"
             : "av-hover-grad text-muted-foreground hover:text-foreground",
         )}
       >

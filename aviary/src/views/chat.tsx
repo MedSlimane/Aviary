@@ -74,12 +74,12 @@ export function ChatView() {
       {/* Ambient gradient glows */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-40 -top-52 size-[680px] rounded-full opacity-40 blur-[150px]"
+        className="pointer-events-none absolute -left-40 -top-52 size-[680px] rounded-full opacity-[0.12] blur-[150px] dark:opacity-40"
         style={{ background: "radial-gradient(circle, #43156b, transparent 70%)" }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-40 right-0 size-[560px] rounded-full opacity-25 blur-[160px]"
+        className="pointer-events-none absolute -bottom-40 right-0 size-[560px] rounded-full opacity-[0.08] blur-[160px] dark:opacity-25"
         style={{ background: "radial-gradient(circle, #2e6e66, transparent 70%)" }}
       />
 
@@ -198,7 +198,7 @@ export function ChatView() {
                   }}
                   rows={1}
                   placeholder="Ask anything, or start with a bundle…"
-                  className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-white/40"
+                  className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-on-glass-3"
                 />
                 <div className="mt-4 flex items-center gap-2">
                   <GlassButton icon={PlusSignIcon} label="Attach" round />
@@ -210,7 +210,7 @@ export function ChatView() {
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setPhase("recording")}
                     aria-label="Voice input"
-                    className="rounded-full p-1.5 text-white/70 transition-colors hover:text-white"
+                    className="rounded-full p-1.5 text-on-glass-2 transition-colors hover:text-on-glass"
                   >
                     <HugeiconsIcon icon={Mic01Icon} size={18} strokeWidth={1.5} />
                   </motion.button>
@@ -222,7 +222,7 @@ export function ChatView() {
                     whileTap={{ scale: value.trim() ? 0.92 : 1 }}
                     transition={{ type: "spring", stiffness: 600, damping: 26 }}
                     aria-label="Send"
-                    className="flex size-8 items-center justify-center rounded-full bg-white text-black disabled:opacity-35"
+                    className="flex size-8 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-35"
                   >
                     <HugeiconsIcon icon={ArrowUp01Icon} size={17} strokeWidth={2} />
                   </motion.button>
@@ -249,7 +249,7 @@ export function ChatView() {
                     whileTap={{ scale: 0.97 }}
                     transition={{ type: "spring", stiffness: 520, damping: 28 }}
                     onClick={() => setValue(s)}
-                    className="rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
+                    className="rounded-full border border-glass-border bg-glass px-3.5 py-2 text-xs font-medium text-on-glass-2 transition-colors hover:text-on-glass"
                   >
                     {s}
                   </motion.button>
@@ -263,7 +263,7 @@ export function ChatView() {
               <button
                 type="button"
                 onClick={reset}
-                className="text-[11px] text-white/45 transition-colors hover:text-white/80"
+                className="text-[11px] text-on-glass-3 transition-colors hover:text-on-glass-2"
               >
                 New chat
               </button>
@@ -303,7 +303,7 @@ function RecordingBody({
   const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
   return (
     <>
-      <p className="text-[15px] text-white/90">
+      <p className="text-[15px] text-on-glass">
         Draft a migration plan for the auth service, then open a PR against
       </p>
 
@@ -312,7 +312,7 @@ function RecordingBody({
         {Array.from({ length: 64 }).map((_, i) => (
           <motion.span
             key={i}
-            className="w-[3px] rounded-full bg-white/60"
+            className="w-[3px] rounded-full bg-foreground/60"
             animate={{ height: [4, 6 + ((i * 37) % 24), 4] }}
             transition={{
               duration: 0.7 + ((i % 7) * 0.09),
@@ -333,12 +333,12 @@ function RecordingBody({
           />
           <span className="text-xs font-medium">Recording</span>
         </span>
-        <span className="font-mono text-xs text-white/55 tabular-nums">{mmss}</span>
+        <span className="font-mono text-xs text-on-glass-3 tabular-nums">{mmss}</span>
         <div className="flex-1" />
         <button
           type="button"
           onClick={onStop}
-          className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/75 transition-colors hover:text-white"
+          className="rounded-full bg-glass-hover px-3 py-1.5 text-xs font-medium text-on-glass-2 transition-colors hover:text-on-glass"
         >
           Cancel
         </button>
@@ -347,9 +347,9 @@ function RecordingBody({
           onClick={onStop}
           whileTap={{ scale: 0.9 }}
           aria-label="Stop recording"
-          className="flex size-[34px] items-center justify-center rounded-full bg-white"
+          className="flex size-[34px] items-center justify-center rounded-full bg-foreground"
         >
-          <span className="size-[11px] rounded-[3px] bg-black" />
+          <span className="size-[11px] rounded-[3px] bg-background" />
         </motion.button>
       </div>
     </>
@@ -371,7 +371,7 @@ function GlassChip({
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.96 }}
       transition={{ type: "spring", stiffness: 560, damping: 28 }}
-      className="flex items-center gap-1.5 rounded-full bg-white/10 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-white/85 transition-colors hover:bg-white/[0.16]"
+      className="flex items-center gap-1.5 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass transition-colors hover:bg-glass-hover"
     >
       <HugeiconsIcon icon={icon} size={15} strokeWidth={1.5} />
       {label}
@@ -399,7 +399,7 @@ function GlassButton({
       whileTap={{ scale: 0.94 }}
       transition={{ type: "spring", stiffness: 560, damping: 28 }}
       className={cn(
-        "flex items-center justify-center bg-white/10 text-white/85 transition-colors hover:bg-white/[0.16]",
+        "flex items-center justify-center bg-glass-hover text-on-glass transition-colors hover:bg-glass-hover",
         round ? "size-[30px] rounded-full" : "rounded-full px-3 py-1.5",
       )}
     >

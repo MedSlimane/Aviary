@@ -53,7 +53,7 @@ function CommandDialog({
           // DialogContent ships `sm:max-w-sm` (384px). That responsive-prefixed
           // cap outranks an unprefixed width, so it must be cleared at the same
           // breakpoint or the palette silently stays narrow.
-          "top-[16%] w-[clamp(520px,44vw,920px)] max-w-[calc(100vw-3rem)] translate-y-0 overflow-hidden rounded-[18px]! border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.07)] p-0 shadow-[0px_24px_60px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[24px] sm:max-w-[calc(100vw-3rem)]",
+          "top-[16%] w-[clamp(520px,44vw,920px)] max-w-[calc(100vw-3rem)] translate-y-0 overflow-hidden rounded-[18px]! border border-glass-border bg-glass p-0 shadow-[0px_24px_60px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[24px] sm:max-w-[calc(100vw-3rem)]",
           className
         )}
         showCloseButton={showCloseButton}
@@ -73,22 +73,22 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="flex w-full items-center gap-[12px] border-b border-[rgba(255,255,255,0.09)] py-[17px] pl-[18px] pr-[16px]"
+      className="flex w-full items-center gap-[12px] border-b border-glass-border py-[17px] pl-[18px] pr-[16px]"
     >
       <HugeiconsIcon
         icon={SearchIcon}
         strokeWidth={1.8}
-        className="size-[17px] shrink-0 text-[rgba(255,255,255,0.55)]"
+        className="size-[17px] shrink-0 text-on-glass-3"
       />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "min-w-0 flex-1 bg-transparent text-[16px] text-[rgba(255,255,255,0.95)] outline-hidden placeholder:text-[rgba(255,255,255,0.4)] disabled:cursor-not-allowed disabled:opacity-50",
+          "min-w-0 flex-1 bg-transparent text-[16px] text-on-glass outline-hidden placeholder:text-on-glass-3 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}
       />
-      <kbd className="shrink-0 rounded-[5px] bg-[rgba(255,255,255,0.1)] px-[7px] py-[3px] font-mono text-[10px] text-[rgba(255,255,255,0.55)]">
+      <kbd className="shrink-0 rounded-[5px] bg-glass-hover px-[7px] py-[3px] font-mono text-[10px] text-on-glass-3">
         esc
       </kbd>
     </div>
@@ -132,7 +132,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "flex flex-col gap-[2px] overflow-hidden text-foreground **:[[cmdk-group-heading]]:pt-[10px] **:[[cmdk-group-heading]]:pb-[4px] **:[[cmdk-group-heading]]:pl-[12px] **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:tracking-[0.8px] **:[[cmdk-group-heading]]:text-[rgba(255,255,255,0.45)]",
+        "flex flex-col gap-[2px] overflow-hidden text-foreground **:[[cmdk-group-heading]]:pt-[10px] **:[[cmdk-group-heading]]:pb-[4px] **:[[cmdk-group-heading]]:pl-[12px] **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:tracking-[0.8px] **:[[cmdk-group-heading]]:text-on-glass-3",
         className
       )}
       {...props}
@@ -162,7 +162,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex w-full cursor-default items-center gap-[12px] rounded-[10px] border border-transparent px-[12px] py-[9px] text-[13px] font-medium text-[rgba(255,255,255,0.88)] outline-hidden select-none in-data-[slot=dialog-content]:rounded-[10px]! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:border-[rgba(255,255,255,0.12)] data-selected:bg-[linear-gradient(90deg,rgba(167,139,250,0.34)_0%,rgba(125,212,252,0.15)_50%,rgba(94,235,212,0.04)_100%),linear-gradient(90deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.1)_100%)] data-selected:text-[rgba(255,255,255,0.96)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-[16px]",
+        "group/command-item relative flex w-full cursor-default items-center gap-[12px] rounded-[10px] border border-transparent px-[12px] py-[9px] text-[13px] font-medium text-on-glass-2 outline-hidden select-none in-data-[slot=dialog-content]:rounded-[10px]! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:border-glass-border data-selected:bg-[linear-gradient(90deg,rgba(167,139,250,0.34)_0%,rgba(125,212,252,0.15)_50%,rgba(94,235,212,0.04)_100%),linear-gradient(90deg,var(--av-glass-hover)_0%,var(--av-glass-hover)_100%)] data-selected:text-on-glass [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-[16px]",
         className
       )}
       {...props}
@@ -180,7 +180,7 @@ function CommandShortcut({
     <span
       data-slot="command-shortcut"
       className={cn(
-        "ml-auto shrink-0 whitespace-nowrap font-mono text-[11px] font-normal text-[rgba(255,255,255,0.42)]",
+        "ml-auto shrink-0 whitespace-nowrap font-mono text-[11px] font-normal text-on-glass-3",
         className
       )}
       {...props}
@@ -196,7 +196,7 @@ function CommandFooter({
     <div
       data-slot="command-footer"
       className={cn(
-        "flex w-full shrink-0 items-center gap-[18px] whitespace-pre bg-[rgba(255,255,255,0.04)] px-[18px] py-[11px] font-mono text-[11px] text-[rgba(255,255,255,0.45)]",
+        "flex w-full shrink-0 items-center gap-[18px] whitespace-pre bg-glass px-[18px] py-[11px] font-mono text-[11px] text-on-glass-3",
         className
       )}
       {...props}

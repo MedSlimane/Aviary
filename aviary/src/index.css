@@ -77,6 +77,13 @@
     --color-warn: var(--av-status-warn);
     --color-claude: var(--av-runner-claude);
     --color-codex: var(--av-runner-codex);
+    --color-glass: var(--av-glass);
+    --color-glass-strong: var(--av-glass-strong);
+    --color-glass-border: var(--av-glass-border);
+    --color-glass-hover: var(--av-glass-hover);
+    --color-on-glass: var(--av-on-glass);
+    --color-on-glass-2: var(--av-on-glass-2);
+    --color-on-glass-3: var(--av-on-glass-3);
 
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
@@ -115,6 +122,17 @@
     --av-runner-codex: #18181b;
 
     --radius: 0.625rem;
+
+    /* Glass surfaces — these sit over photography or gradient, so they need
+       their own ramp rather than the flat surface tokens. Light themes invert
+       to a dark-on-frosted-white treatment. */
+    --av-glass: rgb(255 255 255 / 0.62);
+    --av-glass-strong: rgb(255 255 255 / 0.78);
+    --av-glass-border: rgb(0 0 0 / 0.10);
+    --av-glass-hover: rgb(0 0 0 / 0.06);
+    --av-on-glass: rgb(17 17 19 / 0.96);
+    --av-on-glass-2: rgb(17 17 19 / 0.68);
+    --av-on-glass-3: rgb(17 17 19 / 0.45);
 }
 
 /* --- Dark ---------------------------------------------------------------- */
@@ -143,6 +161,14 @@
     --av-status-error: #f87171;
     --av-runner-claude: #d97757;
     --av-runner-codex: #e8e8ea;
+
+    --av-glass: rgb(255 255 255 / 0.07);
+    --av-glass-strong: rgb(255 255 255 / 0.11);
+    --av-glass-border: rgb(255 255 255 / 0.13);
+    --av-glass-hover: rgb(255 255 255 / 0.10);
+    --av-on-glass: rgb(255 255 255 / 0.96);
+    --av-on-glass-2: rgb(255 255 255 / 0.72);
+    --av-on-glass-3: rgb(255 255 255 / 0.45);
 }
 
 /* --- Aurora (violet-cast dark) ------------------------------------------- */
@@ -218,6 +244,14 @@
     --av-status-error: #b91c1c;
     --av-runner-claude: #b45309;
     --av-runner-codex: #292524;
+
+    --av-glass: rgb(255 253 247 / 0.66);
+    --av-glass-strong: rgb(255 253 247 / 0.82);
+    --av-glass-border: rgb(28 24 20 / 0.12);
+    --av-glass-hover: rgb(28 24 20 / 0.06);
+    --av-on-glass: rgb(28 24 20 / 0.96);
+    --av-on-glass-2: rgb(28 24 20 / 0.68);
+    --av-on-glass-3: rgb(28 24 20 / 0.45);
 }
 
 /* --- shadcn token aliases (theme-independent) ---------------------------- */
@@ -295,8 +329,9 @@
   /* Live frosted glass — restricted to small, transient surfaces only
      (command palette, composer, status pills) per the performance contract. */
   .av-glass {
-    background-color: color-mix(in oklab, white 8%, transparent);
-    border: 1px solid color-mix(in oklab, white 13%, transparent);
+    background-color: var(--av-glass);
+    border: 1px solid var(--av-glass-border);
+    color: var(--av-on-glass);
     backdrop-filter: blur(44px) saturate(140%);
     -webkit-backdrop-filter: blur(44px) saturate(140%);
   }

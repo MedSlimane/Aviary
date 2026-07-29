@@ -95,7 +95,7 @@ export function SettingsView() {
                 )}
               >
                 <div
-                  className="h-14 w-full rounded-lg ring-1 ring-inset ring-white/[0.06]"
+                  className="h-14 w-full rounded-lg ring-1 ring-inset ring-glass-border"
                   style={{ backgroundImage: THEME_SWATCH[t] }}
                 />
                 <p className="px-0.5 text-[11px] font-medium">
