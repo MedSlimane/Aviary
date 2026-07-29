@@ -167,6 +167,7 @@ pub fn run_turn(
     prompt: String,
     cwd: Option<String>,
     mode: PermissionMode,
+    model: Option<String>,
     channel: Channel<Event>,
 ) -> Result<(), String> {
     let mut cmd = match runner {
@@ -179,16 +180,26 @@ pub fn run_turn(
                 .arg("--verbose")
                 .arg("--permission-mode")
                 .arg(mode.as_flag());
+            // Omitted entirely when unset, so the CLI keeps the user's default
+            // rather than Aviary silently pinning one.
+            if let Some(m) = model.as_deref() {
+                c.arg("--model").arg(m);
+            }
             c
         }
         Runner::Codex => {
             let mut c = Command::new("codex");
-            c.arg("exec").arg("--json").arg(&prompt);
+            c.arg("exec").arg("--json");
+            if let Some(m) = model.as_deref() {
+                c.arg("-m").arg(m);
+            }
             // Codex has no equivalent mode flag; the read-only sandbox is the
             // closest analogue to plan.
             if matches!(mode, PermissionMode::Plan) {
                 c.arg("-s").arg("read-only");
             }
+            // Prompt is positional, so every flag must precede it.
+            c.arg(&prompt);
             c
         }
     };

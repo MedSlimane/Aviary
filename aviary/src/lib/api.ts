@@ -236,6 +236,7 @@ export async function runTurn(
   prompt: string,
   mode: PermissionMode,
   cwd: string | null,
+  model: string | null,
   onEvent: (e: TurnEvent) => void,
 ): Promise<void> {
   const channel = new Channel<RawEvent>();
@@ -245,6 +246,7 @@ export async function runTurn(
     prompt,
     cwd,
     mode,
+    model,
     channel,
   });
 }

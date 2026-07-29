@@ -24,6 +24,7 @@ import {
   type Runner,
   type TurnEvent,
 } from "@/lib/api";
+import { MODELS, LabMark, RUNNER_LAB, type Model } from "@/lib/models";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,33 @@ type Message =
   | { role: "assistant"; text: string }
   | { role: "tool"; name: string; summary: string }
   | { role: "error"; text: string };
+
+type Block =
+  | { kind: "message"; message: Message; index: number }
+  /** Consecutive tool calls collapse into one group — a long run of them
+   *  otherwise buries the prose between. */
+  | { kind: "tools"; tools: { name: string; summary: string }[]; index: number };
+
+function groupMessages(messages: Message[]): Block[] {
+  const blocks: Block[] = [];
+  for (const [i, m] of messages.entries()) {
+    if (m.role === "tool") {
+      const last = blocks[blocks.length - 1];
+      if (last?.kind === "tools") {
+        last.tools.push({ name: m.name, summary: m.summary });
+        continue;
+      }
+      blocks.push({
+        kind: "tools",
+        tools: [{ name: m.name, summary: m.summary }],
+        index: i,
+      });
+      continue;
+    }
+    blocks.push({ kind: "message", message: m, index: i });
+  }
+  return blocks;
+}
 
 const SUGGESTIONS = [
   "Summarise what changed in this repo today",
@@ -51,6 +79,7 @@ const TOOL_TINT = [
 export function ChatView() {
   const [runner, setRunner] = useState<Runner>("claude-code");
   const [mode, setMode] = useState<PermissionMode>("Plan");
+  const [model, setModel] = useState<Model>(MODELS["claude-code"][0]);
   const [value, setValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [running, setRunning] = useState(false);
@@ -80,7 +109,7 @@ export function ChatView() {
     setRunning(true);
 
     try {
-      await runTurn(runner, prompt, mode, null, (e: TurnEvent) => {
+      await runTurn(runner, prompt, mode, null, model.id, (e: TurnEvent) => {
         switch (e.kind) {
           case "started":
             setSession({ model: e.model, tools: e.tools, mcpServers: e.mcpServers });
@@ -115,7 +144,7 @@ export function ChatView() {
     } finally {
       setRunning(false);
     }
-  }, [value, running, runner, mode]);
+  }, [value, running, runner, mode, model]);
 
   const empty = messages.length === 0;
 
@@ -161,57 +190,20 @@ export function ChatView() {
             className="mx-auto w-full max-w-[760px] flex-1 space-y-4 overflow-y-auto py-8"
           >
             <AnimatePresence initial={false}>
-              {messages.map((m, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.16 }}
-                >
-                  {m.role === "user" && (
-                    <div className="flex justify-end">
-                      <div className="av-glass max-w-[460px] rounded-[20px] px-[18px] py-3 text-sm">
-                        {m.text}
-                      </div>
-                    </div>
-                  )}
-
-                  {m.role === "assistant" && (
-                    <p className="max-w-[660px] whitespace-pre-wrap text-sm leading-relaxed text-on-glass-2">
-                      {m.text}
-                    </p>
-                  )}
-
-                  {m.role === "tool" && (
-                    <div className="av-glass flex w-fit max-w-full items-center gap-2.5 rounded-full py-2 pl-2.5 pr-5">
-                      <span
-                        className="size-[15px] shrink-0 rounded-[5px]"
-                        style={{
-                          backgroundImage: `linear-gradient(135deg, ${TOOL_TINT[i % 4][0]}, ${TOOL_TINT[i % 4][1]})`,
-                        }}
-                      />
-                      <span className="text-sm font-medium">{m.name}</span>
-                      {m.summary && (
-                        <span className="truncate font-mono text-[11px] text-on-glass-3">
-                          {m.summary}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {m.role === "error" && (
-                    <div className="flex max-w-[660px] items-start gap-2.5 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3.5 py-2.5">
-                      <HugeiconsIcon
-                        icon={Alert02Icon}
-                        size={14}
-                        strokeWidth={1.8}
-                        className="mt-px shrink-0 text-destructive"
-                      />
-                      <p className="whitespace-pre-wrap text-[12px]">{m.text}</p>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
+              {groupMessages(messages).map((b) =>
+                b.kind === "tools" ? (
+                  <motion.div
+                    key={`tools-${b.index}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.16 }}
+                  >
+                    <ToolGroup tools={b.tools} />
+                  </motion.div>
+                ) : (
+                  <MessageBlock key={b.index} m={b.message} />
+                ),
+              )}
             </AnimatePresence>
 
             {running && (
@@ -260,7 +252,14 @@ export function ChatView() {
             />
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <GlassButton icon={PlusSignIcon} label="Attach" />
-              <RunnerPicker runner={runner} onChange={setRunner} />
+              <RunnerPicker
+                runner={runner}
+                onChange={(r) => {
+                  setRunner(r);
+                  setModel(MODELS[r][0]);
+                }}
+              />
+              <ModelPicker runner={runner} model={model} onChange={setModel} />
               <ModePicker mode={mode} onChange={setMode} />
               <div className="flex-1" />
               {session && (
@@ -329,6 +328,193 @@ export function ChatView() {
   );
 }
 
+function MessageBlock({ m }: { m: Message }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.16 }}
+    >
+      {m.role === "user" && (
+        <div className="flex justify-end">
+          <div className="av-glass max-w-[460px] rounded-[20px] px-[18px] py-3 text-sm">
+            {m.text}
+          </div>
+        </div>
+      )}
+
+      {m.role === "assistant" && (
+        <p className="max-w-[660px] whitespace-pre-wrap text-sm leading-relaxed text-on-glass-2">
+          {m.text}
+        </p>
+      )}
+
+      {m.role === "error" && (
+        <div className="flex max-w-[660px] items-start gap-2.5 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3.5 py-2.5">
+          <HugeiconsIcon
+            icon={Alert02Icon}
+            size={14}
+            strokeWidth={1.8}
+            className="mt-px shrink-0 text-destructive"
+          />
+          <p className="whitespace-pre-wrap text-[12px]">{m.text}</p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/**
+ * A run of consecutive tool calls, collapsed. Long runs are common — a single
+ * question can trigger a dozen reads — and rendering each as its own pill
+ * buries the prose that matters.
+ */
+function ToolGroup({ tools }: { tools: { name: string; summary: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const single = tools.length === 1;
+
+  // Distinct tool names, in order, for the collapsed summary.
+  const names = [...new Set(tools.map((t) => t.name))];
+
+  if (single) {
+    return (
+      <div className="av-glass flex w-fit max-w-full items-center gap-2.5 rounded-full py-2 pl-2.5 pr-5">
+        <span
+          className="size-[15px] shrink-0 rounded-[5px]"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${TOOL_TINT[0][0]}, ${TOOL_TINT[0][1]})`,
+          }}
+        />
+        <span className="text-sm font-medium">{tools[0].name}</span>
+        {tools[0].summary && (
+          <span className="truncate font-mono text-[11px] text-on-glass-3">
+            {tools[0].summary}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="av-glass w-fit max-w-full overflow-hidden rounded-[18px]">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2.5 py-2 pl-2.5 pr-4 text-left transition-colors hover:bg-glass-hover"
+      >
+        <span className="flex -space-x-1.5">
+          {names.slice(0, 3).map((n, i) => (
+            <span
+              key={n}
+              className="size-[15px] shrink-0 rounded-[5px] ring-2 ring-transparent"
+              style={{
+                backgroundImage: `linear-gradient(135deg, ${TOOL_TINT[i % 4][0]}, ${TOOL_TINT[i % 4][1]})`,
+              }}
+            />
+          ))}
+        </span>
+        <span className="text-sm font-medium">
+          {tools.length} tool calls
+        </span>
+        <span className="truncate font-mono text-[11px] text-on-glass-3">
+          {names.slice(0, 3).join(" · ")}
+          {names.length > 3 && ` +${names.length - 3}`}
+        </span>
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          size={13}
+          strokeWidth={2}
+          className={cn("shrink-0 transition-transform", open && "rotate-180")}
+        />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-1 border-t border-glass-border px-3 py-2.5">
+              {tools.map((t, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <span
+                    className="size-2 shrink-0 rounded-[3px]"
+                    style={{
+                      backgroundImage: `linear-gradient(135deg, ${TOOL_TINT[i % 4][0]}, ${TOOL_TINT[i % 4][1]})`,
+                    }}
+                  />
+                  <span className="shrink-0 text-[12px] font-medium">{t.name}</span>
+                  {t.summary && (
+                    <span className="truncate font-mono text-[11px] text-on-glass-3">
+                      {t.summary}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ModelPicker({
+  runner,
+  model,
+  onChange,
+}: {
+  runner: Runner;
+  model: Model;
+  onChange: (m: Model) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass-2 transition-colors hover:text-on-glass">
+        <LabMark runner={runner} className="size-[13px]" />
+        {model.label}
+        <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[300px]">
+        <DropdownMenuRadioGroup
+          value={model.id ?? "__default"}
+          onValueChange={(v) => {
+            const next = MODELS[runner].find(
+              (m) => (m.id ?? "__default") === v,
+            );
+            if (next) onChange(next);
+          }}
+        >
+          <DropdownMenuLabel className="flex items-center gap-2">
+            <LabMark runner={runner} className="size-3" />
+            {RUNNER_LAB[runner]}
+          </DropdownMenuLabel>
+          {MODELS[runner].map((m) => (
+            <DropdownMenuRadioItem key={m.id ?? "__default"} value={m.id ?? "__default"}>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="text-[12px] font-medium">{m.label}</span>
+                  {m.tag && (
+                    <span className="rounded-full bg-violet/20 px-1.5 py-px text-[9px] font-medium text-violet">
+                      {m.tag}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {m.note}
+                </span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function RunnerPicker({
   runner,
   onChange,
@@ -339,12 +525,7 @@ function RunnerPicker({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass-2 transition-colors hover:text-on-glass">
-        <span
-          className={cn(
-            "size-1.5 rounded-full",
-            runner === "claude-code" ? "bg-claude" : "bg-codex",
-          )}
-        />
+        <LabMark runner={runner} className="size-[13px]" />
         {runner === "claude-code" ? "Claude Code" : "Codex"}
         <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
       </DropdownMenuTrigger>
