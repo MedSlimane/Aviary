@@ -233,7 +233,7 @@ export function LibraryView() {
 
   return (
     <div className="flex h-full min-h-0 gap-4 p-[26px]">
-      <div className="flex min-w-0 flex-1 flex-col gap-[18px] overflow-y-auto pr-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[18px] overflow-y-auto pr-1">
       <PageHeader
         title="Library"
         subtitle={subtitle}

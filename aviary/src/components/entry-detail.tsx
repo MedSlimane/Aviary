@@ -77,8 +77,8 @@ export function EntryDetail({
   const readOnly = entry.source === "plugin";
 
   return (
-    <aside className="flex h-full min-h-0 w-[460px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-border bg-card">
-      <div className="flex items-start gap-3 border-b border-border px-4 py-3.5">
+    <aside className="sticky top-0 flex h-full max-h-full min-h-0 w-[460px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-border bg-card">
+      <div className="flex shrink-0 items-start gap-3 border-b border-border px-4 py-3.5">
         <div className="min-w-0 flex-1 space-y-1">
           <h2 className="truncate text-[15px] font-semibold">{entry.name}</h2>
           <p className="truncate font-mono text-[11px] text-tertiary">
@@ -229,7 +229,7 @@ export function EntryDetail({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-t border-border px-4 py-3">
+      <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 py-3">
         <Button
           size="sm"
           variant="outline"

@@ -84,8 +84,9 @@ function Shell() {
     }
   };
 
-  // Chat owns its own full-height layout; other views scroll normally.
-  const isChat = route === "chat";
+  // Chat and Library manage their own scrolling internally — Library has two
+  // independently scrolling columns, so the shell must not scroll around it.
+  const ownsScroll = route === "chat" || route === "library";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -93,11 +94,12 @@ function Shell() {
 
       <div className="flex min-h-0 flex-1">
         <AppRail active={route} onNavigate={setRoute} />
-        <main
-          className={cnMain(isChat)}
-          key="main"
-        >
-          <div className={isChat ? "h-full" : undefined}>{renderView()}</div>
+        <main className={cnMain(route)} key="main">
+          {ownsScroll ? (
+            <div className="h-full">{renderView()}</div>
+          ) : (
+            <div className="h-full overflow-y-auto">{renderView()}</div>
+          )}
         </main>
       </div>
 
@@ -202,10 +204,11 @@ function Shell() {
   );
 }
 
-function cnMain(isChat: boolean) {
-  return isChat
+function cnMain(route: RouteId) {
+  // The shell never scrolls; each view decides how its own content scrolls.
+  return route === "chat"
     ? "min-w-0 flex-1 overflow-hidden"
-    : "av-canvas-dots min-w-0 flex-1 overflow-auto";
+    : "av-canvas-dots min-w-0 flex-1 overflow-hidden";
 }
 
 export default function App() {
