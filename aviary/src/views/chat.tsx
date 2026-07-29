@@ -522,6 +522,7 @@ function EffortPicker({
 }) {
   const index = Math.max(0, levels.findIndex((l) => l.effort === effort));
   const pct = levels.length > 1 ? index / (levels.length - 1) : 0;
+  const atMax = levels.length > 1 && index === levels.length - 1;
 
   return (
     <DropdownMenu>
@@ -529,11 +530,16 @@ function EffortPicker({
         {/* A miniature of the track, so the level reads at a glance */}
         <span className="relative h-1.5 w-7 overflow-hidden rounded-full bg-white/15">
           <span
-            className="av-gradient-fill absolute inset-y-0 left-0 rounded-full"
+            className={cn(
+              "absolute inset-y-0 left-0 rounded-full",
+              atMax ? "av-gradient-fill-live" : "av-gradient-fill",
+            )}
             style={{ width: `${Math.max(12, pct * 100)}%` }}
           />
         </span>
-        <span className="capitalize">{effort}</span>
+        <span className={cn("capitalize", atMax && "text-violet")}>
+          {effort}
+        </span>
         <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[300px] p-3">

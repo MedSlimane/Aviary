@@ -38,6 +38,9 @@ export function EffortSlider({
   const INSET = KNOB / 2;
   const DOT = 4;
 
+  /** The topmost level earns the animated fill. */
+  const atMax = last > 0 && index === last;
+
   /** Maps a pointer position to the nearest stop. */
   const pick = useCallback(
     (clientX: number) => {
@@ -89,7 +92,10 @@ export function EffortSlider({
       >
         {/* Filled portion */}
         <motion.div
-          className="av-gradient-fill absolute inset-y-0 left-0 rounded-full"
+          className={cn(
+            "absolute inset-y-0 left-0 rounded-full",
+            atMax ? "av-gradient-fill-live" : "av-gradient-fill",
+          )}
           animate={{ width: `calc(${frac} * (100% - ${KNOB}px) + ${KNOB}px)` }}
           transition={{ type: "spring", stiffness: 520, damping: 38 }}
         />
@@ -120,7 +126,12 @@ export function EffortSlider({
       </div>
 
       <div className="flex items-baseline gap-2 px-0.5">
-        <span className="text-[12px] font-medium capitalize">
+        <span
+          className={cn(
+            "text-[12px] font-medium capitalize",
+            atMax && "text-violet",
+          )}
+        >
           {current?.effort ?? "—"}
         </span>
         {current?.description && (

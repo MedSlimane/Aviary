@@ -46,11 +46,43 @@ pub struct ModelCatalogue {
     pub source: String,
 }
 
-/// Reads the effort levels out of `claude --help`.
+/// Candidate effort levels that exist but are absent from `--help`.
 ///
-/// Parsed rather than hardcoded for the same reason the model list is: the
-/// set changes, and the CLI is the only thing that knows the current one.
-/// Cached because spawning the binary is not free.
+/// The help text is not a complete list — `ultracode` is accepted and works,
+/// yet the printed "Valid values" line omits it. Each candidate is probed
+/// against the CLI rather than assumed, so a wrong guess here can only fail
+/// closed.
+const UNDOCUMENTED_EFFORT_CANDIDATES: &[&str] = &["ultracode", "ultrathink", "ultra"];
+
+/// Asks the CLI whether an effort value is real.
+///
+/// `claude --effort X --help` runs the same validation as a real invocation
+/// but exits at argument parsing, so this costs a process spawn and no turn.
+/// An unknown value prints "Unknown --effort value"; a valid one prints
+/// nothing.
+fn claude_effort_is_valid(effort: &str) -> bool {
+    std::process::Command::new("claude")
+        .arg("--effort")
+        .arg(effort)
+        .arg("--help")
+        .output()
+        .map(|o| {
+            let combined = format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            );
+            !combined.contains("Unknown --effort value")
+        })
+        .unwrap_or(false)
+}
+
+/// Reads the effort levels out of `claude --help`, then probes for levels the
+/// help text does not list.
+///
+/// Parsed and probed rather than hardcoded for the same reason the model list
+/// is: the set changes, and the CLI is the only thing that knows the current
+/// one. Cached because spawning the binary is not free.
 fn claude_effort_levels() -> Vec<ReasoningLevel> {
     static LEVELS: std::sync::OnceLock<Vec<ReasoningLevel>> = std::sync::OnceLock::new();
     LEVELS
@@ -89,13 +121,33 @@ fn claude_effort_levels() -> Vec<ReasoningLevel> {
                 _ => "",
             };
 
-            found
-                .into_iter()
+            let mut levels: Vec<ReasoningLevel> = found
+                .iter()
                 .map(|e| ReasoningLevel {
-                    description: descriptions(&e).to_string(),
-                    effort: e,
+                    description: descriptions(e).to_string(),
+                    effort: e.clone(),
                 })
-                .collect()
+                .collect();
+
+            // Undocumented levels sit above the documented ones in effort.
+            for candidate in UNDOCUMENTED_EFFORT_CANDIDATES {
+                if found.iter().any(|f| f == candidate) {
+                    continue;
+                }
+                if claude_effort_is_valid(candidate) {
+                    levels.push(ReasoningLevel {
+                        effort: (*candidate).to_string(),
+                        description: match *candidate {
+                            "ultracode" => "Maximum depth, tuned for code",
+                            "ultrathink" => "Maximum depth, extended thinking",
+                            _ => "Maximum reasoning depth",
+                        }
+                        .to_string(),
+                    });
+                }
+            }
+
+            levels
         })
         .clone()
 }
@@ -286,5 +338,9 @@ mod tests {
             opus.default_effort
         );
         assert!(!opus.reasoning_levels.is_empty(), "effort levels should parse from --help");
+        assert!(
+            opus.reasoning_levels.iter().any(|l| l.effort == "ultracode"),
+            "ultracode is accepted by the CLI but missing from --help; the probe should find it"
+        );
     }
 }

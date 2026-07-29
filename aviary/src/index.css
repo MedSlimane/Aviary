@@ -461,6 +461,24 @@
     );
   }
 
+  /* At the very top effort the fill comes alive — a wider gradient panning
+     continuously, so max reasoning reads as active rather than just "further
+     right". Only background-position animates, which the compositor handles
+     without repainting. */
+  .av-gradient-fill-live {
+    background-image: linear-gradient(
+      90deg,
+      var(--av-accent-violet) 0%,
+      var(--av-accent-blue) 20%,
+      var(--av-accent-teal) 40%,
+      var(--av-accent-peach) 60%,
+      var(--av-accent-violet) 80%,
+      var(--av-accent-blue) 100%
+    );
+    background-size: 250% 100%;
+    animation: av-grad-pan 3.2s linear infinite;
+  }
+
   /* Selected-row border, tuned by the same per-theme knob as the wash. */
   .av-selected-border {
     border-color: color-mix(
