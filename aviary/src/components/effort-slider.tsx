@@ -27,7 +27,16 @@ export function EffortSlider({
     levels.findIndex((l) => l.effort === value),
   );
   const last = levels.length - 1;
-  const pct = last > 0 ? (index / last) * 100 : 0;
+  /** 0 at the first stop, 1 at the last. */
+  const frac = last > 0 ? index / last : 0;
+
+  // The knob travels between its own edges, not the track's: its centre moves
+  // from KNOB/2 to width - KNOB/2. Dot centres must use the same inset or the
+  // two never line up — which is exactly what went wrong when the knob offset
+  // was approximated with a percentage fudge.
+  const KNOB = 30;
+  const INSET = KNOB / 2;
+  const DOT = 4;
 
   /** Maps a pointer position to the nearest stop. */
   const pick = useCallback(
@@ -35,11 +44,15 @@ export function EffortSlider({
       const el = trackRef.current;
       if (!el || last <= 0) return;
       const { left, width } = el.getBoundingClientRect();
-      const ratio = Math.min(1, Math.max(0, (clientX - left) / width));
+      const travel = Math.max(1, width - KNOB);
+      const ratio = Math.min(
+        1,
+        Math.max(0, (clientX - left - KNOB / 2) / travel),
+      );
       const next = levels[Math.round(ratio * last)];
       if (next && next.effort !== value) onChange(next.effort);
     },
-    [levels, last, value, onChange],
+    [levels, last, value, onChange, KNOB],
   );
 
   const current = levels[index];
@@ -77,12 +90,15 @@ export function EffortSlider({
         {/* Filled portion */}
         <motion.div
           className="av-gradient-fill absolute inset-y-0 left-0 rounded-full"
-          animate={{ width: `calc(${pct}% + 18px)` }}
+          animate={{ width: `calc(${frac} * (100% - ${KNOB}px) + ${KNOB}px)` }}
           transition={{ type: "spring", stiffness: 520, damping: 38 }}
         />
 
         {/* One dot per stop, sitting under the knob */}
-        <div className="absolute inset-0 flex items-center justify-between px-[15px]">
+        <div
+          className="absolute inset-0 flex items-center justify-between"
+          style={{ paddingInline: INSET - DOT / 2 }}
+        >
           {levels.map((l, i) => (
             <span
               key={l.effort}
@@ -96,9 +112,9 @@ export function EffortSlider({
 
         {/* Knob */}
         <motion.div
-          className="absolute top-1/2 size-[30px] rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.3)]"
-          animate={{ left: `calc(${pct}% - ${pct * 0.3}px + 2px)` }}
-          style={{ translateY: "-50%" }}
+          className="absolute top-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.3)]"
+          style={{ translateY: "-50%", width: KNOB, height: KNOB }}
+          animate={{ left: `calc(${frac} * (100% - ${KNOB}px))` }}
           transition={{ type: "spring", stiffness: 520, damping: 38 }}
         />
       </div>
