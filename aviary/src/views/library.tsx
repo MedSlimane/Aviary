@@ -18,6 +18,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuGroup,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -350,11 +351,11 @@ function ViewMenu(props: {
         <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel>Group by</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={props.groupBy}
           onValueChange={(v) => props.setGroupBy(v as GroupBy)}
         >
+          <DropdownMenuLabel>Group by</DropdownMenuLabel>
           {GROUP_BY.map((g) => (
             <DropdownMenuRadioItem key={g} value={g}>
               {g}
@@ -363,11 +364,11 @@ function ViewMenu(props: {
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={props.sortBy}
           onValueChange={(v) => props.setSortBy(v as SortBy)}
         >
+          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
           {SORT_BY.map((s) => (
             <DropdownMenuRadioItem key={s} value={s}>
               {s}
@@ -376,11 +377,11 @@ function ViewMenu(props: {
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Density</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={props.density}
           onValueChange={(v) => props.setDensity(v as Density)}
         >
+          <DropdownMenuLabel>Density</DropdownMenuLabel>
           {DENSITY.map((d) => (
             <DropdownMenuRadioItem key={d} value={d}>
               {d}
@@ -389,12 +390,14 @@ function ViewMenu(props: {
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem
-          checked={props.showPlugins}
-          onCheckedChange={props.setShowPlugins}
-        >
-          Show plugin skills ({props.pluginCount})
-        </DropdownMenuCheckboxItem>
+        <DropdownMenuGroup>
+          <DropdownMenuCheckboxItem
+            checked={props.showPlugins}
+            onCheckedChange={props.setShowPlugins}
+          >
+            Show plugin skills ({props.pluginCount})
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

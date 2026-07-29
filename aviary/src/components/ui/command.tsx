@@ -50,7 +50,10 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "top-[16%] w-[clamp(520px,44vw,920px)] max-w-[calc(100vw-3rem)] translate-y-0 overflow-hidden rounded-[18px]! border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.07)] p-0 shadow-[0px_24px_60px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[24px]",
+          // DialogContent ships `sm:max-w-sm` (384px). That responsive-prefixed
+          // cap outranks an unprefixed width, so it must be cleared at the same
+          // breakpoint or the palette silently stays narrow.
+          "top-[16%] w-[clamp(520px,44vw,920px)] max-w-[calc(100vw-3rem)] translate-y-0 overflow-hidden rounded-[18px]! border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.07)] p-0 shadow-[0px_24px_60px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[24px] sm:max-w-[calc(100vw-3rem)]",
           className
         )}
         showCloseButton={showCloseButton}

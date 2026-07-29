@@ -14,6 +14,7 @@ import {
   CommandFooter,
 } from "@/components/ui/command";
 import { Toaster } from "@/components/ui/toast";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { notify } from "@/lib/notify";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -209,10 +210,12 @@ function cnMain(isChat: boolean) {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <Toaster>
-        <Shell />
-      </Toaster>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Toaster>
+          <Shell />
+        </Toaster>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

@@ -45,11 +45,11 @@ export function TitleBar({ onOpenPalette }: { onOpenPalette: () => void }) {
             <HugeiconsIcon icon={Settings01Icon} size={16} strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuLabel>Theme</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={theme}
               onValueChange={(v) => setTheme(v as ThemeName)}
             >
+              <DropdownMenuLabel>Theme</DropdownMenuLabel>
               {Object.entries(THEMES).map(([id, t]) => (
                 <DropdownMenuRadioItem key={id} value={id}>
                   {t.label}
