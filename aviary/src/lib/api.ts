@@ -131,3 +131,40 @@ export async function discoverProjects(): Promise<Discovery> {
   const raw = await invoke<RawDiscovery>("discover_projects");
   return { candidates: raw.candidates, scannedMs: raw.scanned_ms, roots: raw.roots };
 }
+
+export type Transport = "stdio" | "http" | "sse";
+export type McpSource = "user" | "plugin" | "project";
+
+export type McpServer = {
+  name: string;
+  transport: Transport;
+  command: string | null;
+  args: string[];
+  url: string | null;
+  /** Names only — values are never read, so secrets cannot surface here. */
+  envKeys: string[];
+  source: McpSource;
+  origin: string | null;
+  runners: Runner[];
+  enabled: boolean;
+  configPath: string;
+};
+
+type RawServer = Omit<McpServer, "envKeys" | "configPath"> & {
+  env_keys: string[];
+  config_path: string;
+};
+
+export type McpSnapshot = { servers: McpServer[]; scannedMs: number };
+
+export async function scanMcp(): Promise<McpSnapshot> {
+  const raw = await invoke<{ servers: RawServer[]; scanned_ms: number }>("scan_mcp");
+  return {
+    scannedMs: raw.scanned_ms,
+    servers: raw.servers.map(({ env_keys, config_path, ...s }) => ({
+      ...s,
+      envKeys: env_keys,
+      configPath: config_path,
+    })),
+  };
+}

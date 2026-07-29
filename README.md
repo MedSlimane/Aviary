@@ -200,12 +200,13 @@ Honest state of things — the design is well ahead of the implementation.
 | Entry detail panel with markdown + tokens | ✅ |
 | Indexer + FTS5 search | ⏳ next |
 | Editor with write safety | ✅ |
-| MCP config parsing + health checks | ⏳ |
+| MCP config parsing | ✅ |
+| MCP stdio health checks | ⏳ |
 | Chat driving the real CLI | ⏳ |
 | Context Bundles, `aviary-*` MCP servers | ⏳ |
 
-Chat, MCP and Inspiration currently render designed UI over sample data. The
-Library is real.
+Chat and Inspiration still render designed UI over sample data. Library,
+Projects and MCP read your real machine.
 
 <br />
 

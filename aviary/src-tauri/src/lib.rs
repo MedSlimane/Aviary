@@ -1,5 +1,6 @@
 mod discovery;
 mod library;
+mod mcp;
 mod providers;
 mod tokens;
 mod writer;
@@ -30,6 +31,16 @@ fn write_entry(
 #[tauri::command]
 fn count_tokens(path: String) -> usize {
     tokens::count_file(&path)
+}
+
+#[tauri::command]
+fn scan_mcp() -> mcp::McpSnapshot {
+    let projects: Vec<(String, std::path::PathBuf)> = library::load_settings()
+        .projects
+        .into_iter()
+        .map(|p| (p.name, std::path::PathBuf::from(p.path)))
+        .collect();
+    mcp::scan(&projects)
 }
 
 #[tauri::command]
@@ -78,6 +89,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             scan_library,
             discover_projects,
+            scan_mcp,
             read_entry,
             count_tokens,
             write_entry,
