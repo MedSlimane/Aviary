@@ -27,6 +27,7 @@ import { useLibrary } from "@/lib/use-library";
 import { HomeView } from "@/views/home";
 import { ChatView } from "@/views/chat";
 import { LibraryView } from "@/views/library";
+import { ProjectsView } from "@/views/projects";
 import { McpView } from "@/views/mcp";
 import { ContextView } from "@/views/context";
 import { InspirationView } from "@/views/inspiration";
@@ -73,6 +74,8 @@ function Shell() {
         return <ChatView />;
       case "library":
         return <LibraryView />;
+      case "projects":
+        return <ProjectsView />;
       case "mcp":
         return <McpView />;
       case "context":
@@ -86,7 +89,8 @@ function Shell() {
 
   // Chat and Library manage their own scrolling internally — Library has two
   // independently scrolling columns, so the shell must not scroll around it.
-  const ownsScroll = route === "chat" || route === "library";
+  const ownsScroll =
+    route === "chat" || route === "library" || route === "projects";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">

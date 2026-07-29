@@ -135,7 +135,7 @@ src-tauri/
 └─ mcp_hub/        config read/write, health, aviary-* servers   (planned)
 
 src/
-├─ views/          home · chat · library · mcp · context · inspiration · settings
+├─ views/          home · chat · library · projects · mcp · context · inspiration · settings
 ├─ components/     rail, title bar, shared screen parts
 ├─ lib/            api, theme, motion, notify
 └─ index.css       Figma tokens → shadcn tokens bridge
@@ -196,7 +196,7 @@ Honest state of things — the design is well ahead of the implementation.
 | Design system + 9 screens in Figma | ✅ |
 | Tauri shell, all 7 views, theming, ⌘K | ✅ |
 | Real library discovery from disk | ✅ |
-| Automatic project discovery, opt-in | ✅ |
+| Projects screen — auto-discovery, opt-in tracking | ✅ |
 | Entry detail panel with markdown + tokens | ✅ |
 | Indexer + FTS5 search | ⏳ next |
 | Editor with write safety | ✅ |
