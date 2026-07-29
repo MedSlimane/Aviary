@@ -250,3 +250,31 @@ export async function runTurn(
     channel,
   });
 }
+
+export type ModelOption = {
+  id: string | null;
+  label: string;
+  note: string;
+  isAlias: boolean;
+};
+
+export type ModelCatalogue = {
+  models: ModelOption[];
+  configuredDefault: string | null;
+  source: string;
+};
+
+type RawModel = Omit<ModelOption, "isAlias"> & { is_alias: boolean };
+
+export async function listModels(runner: Runner): Promise<ModelCatalogue> {
+  const raw = await invoke<{
+    models: RawModel[];
+    configured_default: string | null;
+    source: string;
+  }>("list_models", { runner });
+  return {
+    configuredDefault: raw.configured_default,
+    source: raw.source,
+    models: raw.models.map(({ is_alias, ...m }) => ({ ...m, isAlias: is_alias })),
+  };
+}

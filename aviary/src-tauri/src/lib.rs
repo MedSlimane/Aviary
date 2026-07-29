@@ -1,6 +1,7 @@
 mod discovery;
 mod library;
 mod mcp;
+mod models;
 mod providers;
 mod runner;
 mod tokens;
@@ -50,6 +51,11 @@ async fn run_turn(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn list_models(runner: runner::Runner) -> models::ModelCatalogue {
+    models::catalogue(runner)
 }
 
 #[tauri::command]
@@ -110,6 +116,7 @@ pub fn run() {
             discover_projects,
             scan_mcp,
             run_turn,
+            list_models,
             read_entry,
             count_tokens,
             write_entry,

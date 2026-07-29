@@ -19,12 +19,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   runTurn,
+  listModels,
   PERMISSION_MODES,
   type PermissionMode,
   type Runner,
   type TurnEvent,
+  type ModelCatalogue,
+  type ModelOption,
 } from "@/lib/api";
-import { MODELS, LabMark, RUNNER_LAB, type Model } from "@/lib/models";
+import { Input } from "@/components/ui/input";
+import { LabMark, RUNNER_LAB } from "@/lib/lab-marks";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +83,13 @@ const TOOL_TINT = [
 export function ChatView() {
   const [runner, setRunner] = useState<Runner>("claude-code");
   const [mode, setMode] = useState<PermissionMode>("Plan");
-  const [model, setModel] = useState<Model>(MODELS["claude-code"][0]);
+  const [catalogue, setCatalogue] = useState<ModelCatalogue | null>(null);
+  const [model, setModel] = useState<ModelOption>({
+    id: null,
+    label: "Default",
+    note: "",
+    isAlias: false,
+  });
   const [value, setValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [running, setRunning] = useState(false);
@@ -92,6 +102,22 @@ export function ChatView() {
 
   const modeMeta = PERMISSION_MODES.find((m) => m.id === mode)!;
   const permissive = modeMeta.tone === "risky";
+
+  // Models come from the runner itself, so a newly released one shows up
+  // without a change here.
+  useEffect(() => {
+    let cancelled = false;
+    listModels(runner)
+      .then((c) => {
+        if (cancelled) return;
+        setCatalogue(c);
+        setModel(c.models[0]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [runner]);
 
   useEffect(() => {
     streamRef.current?.scrollTo({
@@ -252,19 +278,21 @@ export function ChatView() {
             />
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <GlassButton icon={PlusSignIcon} label="Attach" />
-              <RunnerPicker
+              <RunnerPicker runner={runner} onChange={setRunner} />
+              <ModelPicker
                 runner={runner}
-                onChange={(r) => {
-                  setRunner(r);
-                  setModel(MODELS[r][0]);
-                }}
+                catalogue={catalogue}
+                model={model}
+                onChange={setModel}
               />
-              <ModelPicker runner={runner} model={model} onChange={setModel} />
               <ModePicker mode={mode} onChange={setMode} />
               <div className="flex-1" />
               {session && (
-                <span className="font-mono text-[10px] text-on-glass-3">
-                  {session.tools} tools · {session.mcpServers} mcp
+                <span
+                  className="font-mono text-[10px] text-on-glass-3"
+                  title="Reported by the session itself"
+                >
+                  {session.model} · {session.tools} tools · {session.mcpServers} mcp
                 </span>
               )}
               <motion.button
@@ -464,13 +492,18 @@ function ToolGroup({ tools }: { tools: { name: string; summary: string }[] }) {
 
 function ModelPicker({
   runner,
+  catalogue,
   model,
   onChange,
 }: {
   runner: Runner;
-  model: Model;
-  onChange: (m: Model) => void;
+  catalogue: ModelCatalogue | null;
+  model: ModelOption;
+  onChange: (m: ModelOption) => void;
 }) {
+  const [custom, setCustom] = useState("");
+  const models = catalogue?.models ?? [];
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass-2 transition-colors hover:text-on-glass">
@@ -478,13 +511,11 @@ function ModelPicker({
         {model.label}
         <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[300px]">
+      <DropdownMenuContent align="start" className="w-[320px]">
         <DropdownMenuRadioGroup
           value={model.id ?? "__default"}
           onValueChange={(v) => {
-            const next = MODELS[runner].find(
-              (m) => (m.id ?? "__default") === v,
-            );
+            const next = models.find((m) => (m.id ?? "__default") === v);
             if (next) onChange(next);
           }}
         >
@@ -492,24 +523,59 @@ function ModelPicker({
             <LabMark runner={runner} className="size-3" />
             {RUNNER_LAB[runner]}
           </DropdownMenuLabel>
-          {MODELS[runner].map((m) => (
-            <DropdownMenuRadioItem key={m.id ?? "__default"} value={m.id ?? "__default"}>
+
+          {models.map((m) => (
+            <DropdownMenuRadioItem
+              key={m.id ?? "__default"}
+              value={m.id ?? "__default"}
+            >
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
                   <span className="text-[12px] font-medium">{m.label}</span>
-                  {m.tag && (
-                    <span className="rounded-full bg-violet/20 px-1.5 py-px text-[9px] font-medium text-violet">
-                      {m.tag}
+                  {m.isAlias && (
+                    <span
+                      className="rounded-full bg-teal/20 px-1.5 py-px text-[9px] font-medium text-teal"
+                      title="Always resolves to the newest model in this family"
+                    >
+                      latest
                     </span>
                   )}
                 </span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  {m.note}
-                </span>
+                {m.note && (
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    {m.note}
+                  </span>
+                )}
               </span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+
+        {/* An id we have never heard of must still be reachable. */}
+        <div className="border-t border-border px-2 pb-1.5 pt-2">
+          <Input
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && custom.trim()) {
+                onChange({
+                  id: custom.trim(),
+                  label: custom.trim(),
+                  note: "Entered manually",
+                  isAlias: false,
+                });
+                setCustom("");
+              }
+            }}
+            placeholder="Or type a model id…"
+            className="h-7 font-mono text-[11px]"
+          />
+          {catalogue && (
+            <p className="mt-1.5 px-1 text-[10px] leading-snug text-tertiary">
+              {catalogue.source}
+            </p>
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
