@@ -76,3 +76,19 @@ export function addProject(name: string, path: string): Promise<Project[]> {
 export function removeProject(path: string): Promise<Project[]> {
   return invoke<Project[]>("remove_project", { path });
 }
+
+export type Candidate = {
+  name: string;
+  path: string;
+  runners: string[];
+  markers: string[];
+  registered: boolean;
+};
+
+type RawDiscovery = { candidates: Candidate[]; scanned_ms: number; roots: string[] };
+export type Discovery = { candidates: Candidate[]; scannedMs: number; roots: string[] };
+
+export async function discoverProjects(): Promise<Discovery> {
+  const raw = await invoke<RawDiscovery>("discover_projects");
+  return { candidates: raw.candidates, scannedMs: raw.scanned_ms, roots: raw.roots };
+}

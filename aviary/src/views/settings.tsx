@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { notify } from "@/lib/notify";
 import { THEMES, useTheme, type ThemeName } from "@/lib/theme";
 import { PageHeader, SectionLabel } from "@/components/screen-parts";
+import { ProjectsCard } from "@/components/projects-card";
 import { cn } from "@/lib/utils";
 
 const { motion } = motionReact;
@@ -144,6 +145,8 @@ export function SettingsView() {
           }
         />
       </Card>
+
+      <ProjectsCard />
 
       <Card title="FILES & SAFETY">
         <Row

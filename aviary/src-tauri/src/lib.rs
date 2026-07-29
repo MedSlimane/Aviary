@@ -1,6 +1,8 @@
+mod discovery;
 mod library;
 mod providers;
 
+use discovery::DiscoveryResult;
 use library::{LibrarySnapshot, Project};
 
 #[tauri::command]
@@ -11,6 +13,16 @@ fn scan_library() -> LibrarySnapshot {
 #[tauri::command]
 fn read_entry(path: String) -> Result<String, String> {
     library::read_entry(&path)
+}
+
+#[tauri::command]
+fn discover_projects() -> DiscoveryResult {
+    let registered: Vec<String> = library::load_settings()
+        .projects
+        .into_iter()
+        .map(|p| p.path)
+        .collect();
+    discovery::discover(&registered)
 }
 
 #[tauri::command]
@@ -48,6 +60,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             scan_library,
+            discover_projects,
             read_entry,
             list_projects,
             add_project,
