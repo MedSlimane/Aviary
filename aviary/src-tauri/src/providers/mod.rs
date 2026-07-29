@@ -71,6 +71,10 @@ pub struct Entry {
     pub real_path: String,
     /// Project name, when `source` is `Project`.
     pub project: Option<String>,
+    /// The pack an entry ships as part of — a plugin name for plugin skills,
+    /// a project name for project entries. This is what makes "skills that
+    /// come together" groupable: `superpowers` ships ~15 skills as one unit.
+    pub group: Option<String>,
     /// Remaining frontmatter keys, as strings.
     pub meta: BTreeMap<String, String>,
     pub bytes: u64,
@@ -121,6 +125,28 @@ pub fn parse_markdown(path: &Path) -> Parsed {
     }
 }
 
+/// Extracts the owning plugin/pack from a plugin skill path.
+///
+/// Two shapes exist on disk:
+///   ~/.claude/plugins/cache/<marketplace>/<plugin>/<hash>/skills/<n>/SKILL.md
+///   ~/.claude/plugins/marketplaces/<marketplace>/skills/<n>/SKILL.md
+///
+/// For the cache form the plugin segment is the pack; for the marketplace form
+/// the marketplace itself is.
+pub fn plugin_group(path: &Path) -> Option<String> {
+    let parts: Vec<&str> = path
+        .components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .collect();
+    let plugins_at = parts.iter().position(|p| *p == "plugins")?;
+
+    match parts.get(plugins_at + 1)? {
+        &"cache" => parts.get(plugins_at + 3).map(|s| s.to_string()),
+        &"marketplaces" => parts.get(plugins_at + 2).map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
 /// Builds an entry from a markdown file, resolving symlinks for identity.
 pub fn entry_from_file(
     path: &Path,
@@ -157,6 +183,7 @@ pub fn entry_from_file(
         runners: vec![runner],
         path: path.to_string_lossy().to_string(),
         real_path: real.to_string_lossy().to_string(),
+        group: plugin_group(path).or_else(|| project.clone()),
         project,
         meta: parsed.meta,
         bytes: meta_fs.len(),

@@ -82,6 +82,14 @@ fn scan_plugins(plugins_root: &Path) -> Vec<Entry> {
         if found.file_name() != "SKILL.md" {
             continue;
         }
+        // Backup copies of a marketplace duplicate every skill it holds.
+        if found
+            .path()
+            .components()
+            .any(|c| c.as_os_str().to_string_lossy().ends_with(".bak"))
+        {
+            continue;
+        }
         let Some(entry) = entry_from_file(found.path(), Kind::Skill, Source::Plugin, RUNNER, None)
         else {
             continue;

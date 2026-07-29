@@ -11,9 +11,18 @@ import {
   CommandList,
   CommandSeparator,
   CommandShortcut,
+  CommandFooter,
 } from "@/components/ui/command";
 import { Toaster } from "@/components/ui/toast";
 import { notify } from "@/lib/notify";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  SparklesIcon,
+  Layers01Icon,
+  PaintBoardIcon,
+  ArrowRight01Icon,
+} from "@hugeicons/core-free-icons";
+import { useLibrary } from "@/lib/use-library";
 import { HomeView } from "@/views/home";
 import { ChatView } from "@/views/chat";
 import { LibraryView } from "@/views/library";
@@ -21,14 +30,6 @@ import { McpView } from "@/views/mcp";
 import { ContextView } from "@/views/context";
 import { InspirationView } from "@/views/inspiration";
 import { SettingsView } from "@/views/settings";
-
-const LIBRARY_ITEMS = [
-  { name: "design-taste-frontend", meta: "Skill · Claude Code" },
-  { name: "systematic-debugging", meta: "Skill · Claude Code" },
-  { name: "Explore", meta: "Agent · Claude Code" },
-  { name: "brandkit", meta: "Skill · Codex" },
-  { name: "/verify", meta: "Command · Claude Code" },
-];
 
 const BUNDLE_ITEMS = [
   "Frontend Review",
@@ -41,6 +42,11 @@ function Shell() {
   const [route, setRoute] = useState<RouteId>("home");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const { setTheme } = useTheme();
+  const { data } = useLibrary();
+
+  // Palette searches the real library; cmdk filters, so a slice keeps the
+  // list responsive without hiding matches the user typed toward.
+  const libraryItems = (data?.entries ?? []).slice(0, 200);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -104,42 +110,49 @@ function Shell() {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
 
-          <CommandGroup heading="Go to">
+          <CommandGroup heading="GO TO">
             {NAV_ITEMS.map((item) => (
               <CommandItem
                 key={item.id}
                 value={`go ${item.label}`}
                 onSelect={() => go(item.id)}
               >
-                {item.label}
+                <HugeiconsIcon icon={item.icon} strokeWidth={1.5} />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <CommandShortcut>↵</CommandShortcut>
               </CommandItem>
             ))}
             <CommandItem value="go Settings" onSelect={() => go("settings")}>
-              Settings
+              <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.5} />
+              <span className="min-w-0 flex-1 truncate">Settings</span>
+              <CommandShortcut>↵</CommandShortcut>
             </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
 
-          <CommandGroup heading="Library">
-            {LIBRARY_ITEMS.map((l) => (
+          <CommandGroup heading="LIBRARY">
+            {libraryItems.map((l) => (
               <CommandItem
-                key={l.name}
-                value={l.name}
+                key={l.id}
+                value={`${l.name} ${l.description} ${l.group ?? ""}`}
                 onSelect={() => {
                   go("library");
-                  notify(`Opened ${l.name}`);
+                  notify(l.name, {
+                    description: l.path.replace(/^\/Users\/[^/]+/, "~"),
+                  });
                 }}
               >
-                <span className="flex-1">{l.name}</span>
-                <span className="text-[11px] text-tertiary">{l.meta}</span>
+                <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.5} />
+                <span className="min-w-0 flex-1 truncate">{l.name}</span>
+                <CommandShortcut>{l.group ?? l.kind}</CommandShortcut>
               </CommandItem>
             ))}
           </CommandGroup>
 
           <CommandSeparator />
 
-          <CommandGroup heading="Bundles">
+          <CommandGroup heading="BUNDLES">
             {BUNDLE_ITEMS.map((b) => (
               <CommandItem
                 key={b}
@@ -151,7 +164,8 @@ function Shell() {
                   });
                 }}
               >
-                <span className="flex-1">{b}</span>
+                <HugeiconsIcon icon={Layers01Icon} strokeWidth={1.5} />
+                <span className="min-w-0 flex-1 truncate">{b}</span>
                 <CommandShortcut>⌘↵</CommandShortcut>
               </CommandItem>
             ))}
@@ -159,7 +173,7 @@ function Shell() {
 
           <CommandSeparator />
 
-          <CommandGroup heading="Theme">
+          <CommandGroup heading="THEME">
             {(Object.keys(THEMES) as ThemeName[]).map((t) => (
               <CommandItem
                 key={t}
@@ -170,11 +184,18 @@ function Shell() {
                   notify(`Theme: ${THEMES[t].label}`);
                 }}
               >
-                {THEMES[t].label}
+                <HugeiconsIcon icon={PaintBoardIcon} strokeWidth={1.5} />
+                <span className="min-w-0 flex-1 truncate">{THEMES[t].label}</span>
               </CommandItem>
             ))}
           </CommandGroup>
         </CommandList>
+        <CommandFooter>
+          <span>{"↵  open"}</span>
+          <span>{"↑↓  navigate"}</span>
+          <span>{"⌘↵  launch bundle"}</span>
+          <span className="ml-auto">{"esc  close"}</span>
+        </CommandFooter>
       </CommandDialog>
     </div>
   );

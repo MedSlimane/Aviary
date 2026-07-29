@@ -14,6 +14,8 @@ export type Entry = {
   path: string;
   realPath: string;
   project: string | null;
+  /** The pack an entry ships as part of — plugin name, or project name. */
+  group: string | null;
   meta: Record<string, string>;
   bytes: number;
   modified: number;
