@@ -1,82 +1,75 @@
 # LinkedIn posts
 
-Visuals live in Figma → **07 · LinkedIn**. Three slides at 1200×1200, built in
-the X-post layout: copy left, app window bleeding off the right edge, abstract
-gradient background.
+Visuals live in Figma → **07 · LinkedIn**. Three slides at 1200×1200 in the
+X-post layout: copy left, real app window bleeding off the right edge, abstract
+gradient background with Aurora/Dusk/Tidal glows.
 
 [Open in Figma](https://www.figma.com/design/odzFIgPkY0H65N8dM8buq8)
 
 ---
 
-## Post 1 — the carousel
+## Post 1 — carousel
 
 **Slides:** `LI 1 · Hook` → `LI 2 · Library` → `LI 3 · Context`
 
-> My agent config was spread across six files I never opened.
+> Tired of re-managing your skills, context and MCP servers every time you
+> switch agents?
 >
-> `~/.claude/skills/`, `~/.codex/AGENTS.md`, a per-project `CLAUDE.md`, MCP
-> servers declared in three incompatible formats, plus a memory directory I'd
-> genuinely forgotten about.
+> I've been building **Aviary** — a local-first desktop app that keeps all of it
+> in one window, shared across every agent you run.
 >
-> Every one of them shapes how Claude Code and Codex behave. None of them were
-> anywhere I could see.
+> Claude Code and Codex read their behaviour from files scattered across your
+> disk: `~/.claude/skills/`, `~/.codex/AGENTS.md`, per-project `CLAUDE.md`, MCP
+> servers declared in three incompatible formats, memory directories, plugin
+> caches. Same concepts, different places, no shared view.
 >
-> So I've been building Aviary — a local-first desktop app that puts all of it
-> in one window.
+> Aviary indexes all of it. Every skill, agent, prompt and command across both
+> runners in one searchable library, grouped by the pack it ships with. A
+> resolution-order view of exactly what loads before your first message, with
+> its real token cost. Chat that drives the runner's own CLI, so an edit applies
+> on the very next turn — same files, no sync layer.
 >
-> Three things I learned building it:
+> Two things I got wrong before I got them right:
 >
-> **1. Skills aren't owned by a runner.** They sit in a shared pool and get
-> symlinked into each runner's directory. "Enabled for Claude Code" isn't
-> metadata you store — it's whether a symlink exists. Once I understood that,
-> the whole data model got simpler: dedupe by real path, collect the runners
-> that link to it. 20 of my skills are shared across both.
+> Skills aren't owned by a runner. They live in a shared pool and get symlinked
+> into each one, so "enabled for Claude Code" is a symlink, not metadata. 20 of
+> mine are shared across both.
 >
-> **2. Nobody can see their own context.** By the time you type your first
-> message, ~17k tokens are already loaded — system prompt, instruction files,
-> active skills, MCP tool definitions, memory. That's 8.5% of the window gone
-> before you've asked anything. So I built the screen that shows it, in
-> resolution order, with real costs.
+> And my 45 personal skills were buried under 70 plugin skills I never wrote.
+> Grouping by pack made my own work findable again.
 >
-> **3. Files have to stay the source of truth.** The index is a disposable
-> cache. Delete it, lose nothing but a rescan. Aviary edits the same files the
-> CLIs read, so a change applies on the very next turn — no sync, no export,
-> no drift.
+> Early days — the library reads real data, chat and MCP are designed but not
+> wired yet.
 >
-> Still early. The library is real; chat and MCP are designed but not wired.
+> Tauri, React, Rust.
 >
-> Built with Tauri, React and Rust. Happy to go deeper on any of it.
->
-> #AI #DeveloperTools #ClaudeCode #Rust #LocalFirst
+> #AI #DeveloperTools #ClaudeCode #Rust
 
 ---
 
 ## Post 2 — skills and context, standalone
 
-**Visual:** `LI 2 · Library` (or 2 + 3 as a two-image post)
+**Visual:** `LI 2 · Library`, or 2 + 3 as a two-image post
 
-> "Why did the agent do that?"
+> Tired of not knowing what's actually in your agent's context?
 >
-> Nine times out of ten the answer is: something you couldn't see was in its
-> context.
+> I've been building **Aviary** to make that visible.
 >
-> Before you type a single word to Claude Code, you've typically spent ~17k
-> tokens — the system prompt, your global `CLAUDE.md`, the project one, local
-> overrides, every active skill, every MCP tool definition, and whatever memory
-> files got picked up.
+> By the time you send your first message to Claude Code, roughly 17,000 tokens
+> are already loaded — system prompt, global instructions, project ones, local
+> overrides, every active skill, every MCP tool definition, whatever memory got
+> picked up. That's 8.5% of a 200k window, spent before you asked for anything,
+> and nowhere you can see it.
 >
-> That's 8.5% of a 200k window, gone, invisible.
+> So Aviary shows it. Every layer in resolution order, with per-layer cost
+> against the window. Switch runner or directory and it recomputes.
 >
-> I've been building Aviary to make that surface visible and editable:
+> The same index powers the library — every skill, agent and prompt across
+> Claude Code and Codex, deduplicated by real path, so a skill symlinked into
+> both appears once and reports both.
 >
-> → every skill, agent and prompt across runners in one index, grouped by the
-> pack it ships with
-> → the exact resolution order of what loads, with per-layer token cost
-> → edits write to the same files the CLIs read, so they apply on the next turn
->
-> The part that surprised me: my 45 personal skills were buried under ~70 plugin
-> skills I'd never authored. Grouping by pack made my own work findable again —
-> a five-line change that mattered more than any feature I'd planned.
+> Files stay the source of truth. The index is a disposable cache; edits write
+> to the files the CLIs already read.
 >
 > #AI #DeveloperTools #ClaudeCode #ContextEngineering
 
@@ -84,11 +77,18 @@ gradient background.
 
 ## Notes
 
-- Slide 1 headline was originally *"You can finally see what your agent is
-  doing"* — replaced, it under-sold the product as a log viewer rather than a
-  home for everything.
-- Keep the claim honest: the Library reads real data; Chat, MCP and Inspiration
-  are designed UI over sample data. The status table in the README says the
-  same, so the two don't contradict each other.
-- Both posts lead with the problem, not the tool. The config-scattered-across-
-  six-files opening is the part people recognise in their own setup.
+**Voice.** Open with a single "tired of…" question, then "I've been building
+Aviary" and describe it. No numbered lists — the two lessons in post 1 stay as
+prose, since a list reads as a template.
+
+**Why the hook names switching.** "Tired of managing context" is true but vague;
+*"every time you switch agents"* is the sharper pain and the one the product
+actually solves.
+
+**Keep the claims honest.** The Library reads real data. Chat, MCP and
+Inspiration are designed UI over sample data. Post 1 says so, and the README's
+status table says the same — the two must not contradict each other.
+
+**Length.** Post 1 runs ~200 words, past LinkedIn's truncation point. The "see
+more" break lands just after the Aviary description, which is a reasonable
+place for it.
