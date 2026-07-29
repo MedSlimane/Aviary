@@ -53,6 +53,10 @@ into each runner's directory — so "enabled for Claude Code" is the presence of
 symlink, not metadata. Aviary deduplicates by canonical path and reports every
 runner that links to an entry.
 
+Select one and it opens beside the list: frontmatter, rendered markdown, the
+symlink target, and a real token count from `tiktoken` rather than a byte
+heuristic.
+
 <br />
 
 ## Context, finally visible
@@ -192,6 +196,8 @@ Honest state of things — the design is well ahead of the implementation.
 | Design system + 9 screens in Figma | ✅ |
 | Tauri shell, all 7 views, theming, ⌘K | ✅ |
 | Real library discovery from disk | ✅ |
+| Automatic project discovery, opt-in | ✅ |
+| Entry detail panel with markdown + tokens | ✅ |
 | Indexer + FTS5 search | ⏳ next |
 | Editor with write safety | ⏳ |
 | MCP config parsing + health checks | ⏳ |
