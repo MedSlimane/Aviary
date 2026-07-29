@@ -50,7 +50,7 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "top-[16%] w-[640px] max-w-[calc(100vw-3rem)] translate-y-0 overflow-hidden rounded-[18px]! border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.07)] p-0 shadow-[0px_24px_60px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[24px]",
+          "top-[16%] w-[clamp(520px,44vw,920px)] max-w-[calc(100vw-3rem)] translate-y-0 overflow-hidden rounded-[18px]! border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.07)] p-0 shadow-[0px_24px_60px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[24px]",
           className
         )}
         showCloseButton={showCloseButton}
@@ -100,7 +100,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        "no-scrollbar flex max-h-[380px] flex-col gap-[2px] overflow-x-hidden overflow-y-auto p-[8px] outline-none",
+        "no-scrollbar flex max-h-[clamp(280px,46vh,560px)] flex-col gap-[2px] overflow-x-hidden overflow-y-auto p-[8px] outline-none",
         className
       )}
       {...props}
