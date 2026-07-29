@@ -26,6 +26,7 @@ import {
   type TurnEvent,
   type ModelCatalogue,
   type ModelOption,
+  type ReasoningLevel,
 } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { EffortSlider } from "@/components/effort-slider";
@@ -288,13 +289,18 @@ export function ChatView() {
                 runner={runner}
                 catalogue={catalogue}
                 model={model}
-                effort={effort}
                 onChange={(m) => {
                   setModel(m);
                   setEffort(m.defaultEffort ?? null);
                 }}
-                onEffortChange={setEffort}
               />
+              {model.reasoningLevels.length > 1 && effort && (
+                <EffortPicker
+                  levels={model.reasoningLevels}
+                  effort={effort}
+                  onChange={setEffort}
+                />
+              )}
               <ModePicker mode={mode} onChange={setMode} />
               <div className="flex-1" />
               {session && (
@@ -500,20 +506,56 @@ function ToolGroup({ tools }: { tools: { name: string; summary: string }[] }) {
   );
 }
 
+/**
+ * Effort lives beside the model rather than inside its menu: it is changed far
+ * more often than the model, and burying it behind two clicks made a
+ * per-message decision feel like a setting.
+ */
+function EffortPicker({
+  levels,
+  effort,
+  onChange,
+}: {
+  levels: ReasoningLevel[];
+  effort: string;
+  onChange: (e: string) => void;
+}) {
+  const index = Math.max(0, levels.findIndex((l) => l.effort === effort));
+  const pct = levels.length > 1 ? index / (levels.length - 1) : 0;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-2 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass-2 transition-colors hover:text-on-glass">
+        {/* A miniature of the track, so the level reads at a glance */}
+        <span className="relative h-1.5 w-7 overflow-hidden rounded-full bg-white/15">
+          <span
+            className="av-gradient-fill absolute inset-y-0 left-0 rounded-full"
+            style={{ width: `${Math.max(12, pct * 100)}%` }}
+          />
+        </span>
+        <span className="capitalize">{effort}</span>
+        <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[300px] p-3">
+        <p className="mb-2.5 text-[10px] font-semibold tracking-[0.8px] text-tertiary">
+          REASONING EFFORT
+        </p>
+        <EffortSlider levels={levels} value={effort} onChange={onChange} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ModelPicker({
   runner,
   catalogue,
   model,
-  effort,
   onChange,
-  onEffortChange,
 }: {
   runner: Runner;
   catalogue: ModelCatalogue | null;
   model: ModelOption;
-  effort: string | null;
   onChange: (m: ModelOption) => void;
-  onEffortChange: (e: string) => void;
 }) {
   const [custom, setCustom] = useState("");
   const models = catalogue?.models ?? [];
@@ -523,22 +565,9 @@ function ModelPicker({
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full bg-glass-hover py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-on-glass-2 transition-colors hover:text-on-glass">
         <LabMark runner={runner} className="size-[13px]" />
         {model.label}
-        {effort && (
-          <span className="capitalize text-on-glass-3">{effort}</span>
-        )}
         <HugeiconsIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[320px]">
-        {model.reasoningLevels.length > 1 && effort && (
-          <div className="border-b border-border px-2 pb-3 pt-2">
-            <EffortSlider
-              levels={model.reasoningLevels}
-              value={effort}
-              onChange={onEffortChange}
-            />
-          </div>
-        )}
-
         <DropdownMenuRadioGroup
           value={model.id ?? "__default"}
           onValueChange={(v) => {

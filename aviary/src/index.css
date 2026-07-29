@@ -449,6 +449,18 @@
   .av-markdown .hljs-title,
   .av-markdown .hljs-name { color: var(--av-accent-blue); }
 
+  /* Iridescent fill for the effort track — the same violet → blue → teal
+     progression as the selection wash, at full strength since this is the
+     element's own surface rather than an overlay. */
+  .av-gradient-fill {
+    background-image: linear-gradient(
+      90deg,
+      var(--av-accent-violet) 0%,
+      var(--av-accent-blue) 55%,
+      var(--av-accent-teal) 100%
+    );
+  }
+
   /* Selected-row border, tuned by the same per-theme knob as the wash. */
   .av-selected-border {
     border-color: color-mix(
@@ -460,7 +472,7 @@
 
   /* Command palette selection. Written here rather than as an arbitrary
      Tailwind value so it can read the per-theme intensity knobs. */
-  [data-slot="command-item"][data-selected] {
+  [data-slot="command-item"][data-selected="true"] {
     border-color: color-mix(
       in oklab,
       var(--av-accent-violet) calc(var(--av-wash-1) * 130%),

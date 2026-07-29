@@ -76,7 +76,7 @@ export function EffortSlider({
       >
         {/* Filled portion */}
         <motion.div
-          className="absolute inset-y-0 left-0 rounded-full bg-violet"
+          className="av-gradient-fill absolute inset-y-0 left-0 rounded-full"
           animate={{ width: `calc(${pct}% + 18px)` }}
           transition={{ type: "spring", stiffness: 520, damping: 38 }}
         />
@@ -88,7 +88,7 @@ export function EffortSlider({
               key={l.effort}
               className={cn(
                 "size-1 rounded-full transition-colors",
-                i <= index ? "bg-white/45" : "bg-tertiary/50",
+                i <= index ? "bg-white/55" : "bg-tertiary/50",
               )}
             />
           ))}
