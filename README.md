@@ -202,11 +202,11 @@ Honest state of things — the design is well ahead of the implementation.
 | Editor with write safety | ✅ |
 | MCP config parsing | ✅ |
 | MCP stdio health checks | ⏳ |
-| Chat driving the real CLI | ⏳ |
+| Chat driving the real CLI | ✅ |
 | Context Bundles, `aviary-*` MCP servers | ⏳ |
 
-Chat and Inspiration still render designed UI over sample data. Library,
-Projects and MCP read your real machine.
+Inspiration still renders designed UI over sample data. Library, Projects,
+MCP and Chat all work against your real machine.
 
 <br />
 

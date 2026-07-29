@@ -168,3 +168,83 @@ export async function scanMcp(): Promise<McpSnapshot> {
     })),
   };
 }
+
+import { Channel } from "@tauri-apps/api/core";
+
+export type PermissionMode =
+  | "Plan"
+  | "Manual"
+  | "AcceptEdits"
+  | "Auto"
+  | "DontAsk"
+  | "BypassPermissions";
+
+export const PERMISSION_MODES: {
+  id: PermissionMode;
+  label: string;
+  desc: string;
+  tone: "safe" | "caution" | "risky";
+  tag?: string;
+}[] = [
+  { id: "Plan", label: "plan", desc: "Read-only. Explores and proposes, never edits or runs commands.", tone: "safe", tag: "Recommended" },
+  { id: "Manual", label: "manual", desc: "Asks in the terminal before each tool call.", tone: "safe" },
+  { id: "AcceptEdits", label: "acceptEdits", desc: "Auto-approves file edits. Still asks for commands.", tone: "caution" },
+  { id: "Auto", label: "auto", desc: "Auto-approves most tool calls.", tone: "caution" },
+  { id: "DontAsk", label: "dontAsk", desc: "Never prompts. Runs whatever it decides to run.", tone: "risky", tag: "Risky" },
+  { id: "BypassPermissions", label: "bypassPermissions", desc: "Every guard off, including dangerous commands.", tone: "risky", tag: "Dangerous" },
+];
+
+export type TurnEvent =
+  | { kind: "started"; sessionId: string; model: string; cwd: string; tools: number; mcpServers: number; permissionMode: string }
+  | { kind: "text"; text: string }
+  | { kind: "tool-call"; name: string; summary: string }
+  | { kind: "raw"; lineType: string; json: string }
+  | { kind: "finished"; isError: boolean; durationMs: number }
+  | { kind: "failed"; message: string };
+
+/** Rust serialises snake_case; normalise at the boundary. */
+type RawEvent = Record<string, unknown> & { kind: string };
+
+function normaliseEvent(e: RawEvent): TurnEvent {
+  const g = (k: string) => e[k];
+  switch (e.kind) {
+    case "started":
+      return {
+        kind: "started",
+        sessionId: String(g("session_id") ?? ""),
+        model: String(g("model") ?? ""),
+        cwd: String(g("cwd") ?? ""),
+        tools: Number(g("tools") ?? 0),
+        mcpServers: Number(g("mcp_servers") ?? 0),
+        permissionMode: String(g("permission_mode") ?? ""),
+      };
+    case "tool-call":
+      return { kind: "tool-call", name: String(g("name") ?? ""), summary: String(g("summary") ?? "") };
+    case "finished":
+      return { kind: "finished", isError: Boolean(g("is_error")), durationMs: Number(g("duration_ms") ?? 0) };
+    case "raw":
+      return { kind: "raw", lineType: String(g("line_type") ?? ""), json: String(g("json") ?? "") };
+    case "failed":
+      return { kind: "failed", message: String(g("message") ?? "") };
+    default:
+      return { kind: "text", text: String(g("text") ?? "") };
+  }
+}
+
+export async function runTurn(
+  runner: Runner,
+  prompt: string,
+  mode: PermissionMode,
+  cwd: string | null,
+  onEvent: (e: TurnEvent) => void,
+): Promise<void> {
+  const channel = new Channel<RawEvent>();
+  channel.onmessage = (e) => onEvent(normaliseEvent(e));
+  await invoke("run_turn", {
+    runner: runner === "claude-code" ? "claude-code" : "codex",
+    prompt,
+    cwd,
+    mode,
+    channel,
+  });
+}

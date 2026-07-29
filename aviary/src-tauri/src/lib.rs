@@ -2,6 +2,7 @@ mod discovery;
 mod library;
 mod mcp;
 mod providers;
+mod runner;
 mod tokens;
 mod writer;
 
@@ -31,6 +32,23 @@ fn write_entry(
 #[tauri::command]
 fn count_tokens(path: String) -> usize {
     tokens::count_file(&path)
+}
+
+/// Runs one chat turn. Blocking work happens on a background thread so the
+/// UI thread is never held by a subprocess.
+#[tauri::command]
+async fn run_turn(
+    runner: runner::Runner,
+    prompt: String,
+    cwd: Option<String>,
+    mode: runner::PermissionMode,
+    channel: tauri::ipc::Channel<runner::Event>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        runner::run_turn(runner, prompt, cwd, mode, channel)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -90,6 +108,7 @@ pub fn run() {
             scan_library,
             discover_projects,
             scan_mcp,
+            run_turn,
             read_entry,
             count_tokens,
             write_entry,
