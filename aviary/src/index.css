@@ -133,6 +133,17 @@
     --av-on-glass: rgb(17 17 19 / 0.96);
     --av-on-glass-2: rgb(17 17 19 / 0.68);
     --av-on-glass-3: rgb(17 17 19 / 0.45);
+
+    /* Hover and selection intensity.
+       Dark surfaces absorb saturated colour; light ones do not, so the same
+       opacity that reads as a whisper on Dark reads as a stain on Light.
+       These are dialled back for the light themes. */
+    --av-hover-opacity: 0.07;
+    --av-hover-opacity-strong: 0.12;
+    --av-wash-1: 0.14;
+    --av-wash-2: 0.07;
+    --av-wash-3: 0.02;
+    --av-ring-opacity: 0.22;
 }
 
 /* --- Dark ---------------------------------------------------------------- */
@@ -169,6 +180,13 @@
     --av-on-glass: rgb(255 255 255 / 0.96);
     --av-on-glass-2: rgb(255 255 255 / 0.72);
     --av-on-glass-3: rgb(255 255 255 / 0.45);
+
+    --av-hover-opacity: 0.16;
+    --av-hover-opacity-strong: 0.26;
+    --av-wash-1: 0.30;
+    --av-wash-2: 0.14;
+    --av-wash-3: 0.03;
+    --av-ring-opacity: 0.45;
 }
 
 /* --- Aurora (violet-cast dark) ------------------------------------------- */
@@ -252,6 +270,13 @@
     --av-on-glass: rgb(28 24 20 / 0.96);
     --av-on-glass-2: rgb(28 24 20 / 0.68);
     --av-on-glass-3: rgb(28 24 20 / 0.45);
+
+    --av-hover-opacity: 0.06;
+    --av-hover-opacity-strong: 0.10;
+    --av-wash-1: 0.12;
+    --av-wash-2: 0.06;
+    --av-wash-3: 0.02;
+    --av-ring-opacity: 0.20;
 }
 
 /* --- shadcn token aliases (theme-independent) ---------------------------- */
@@ -340,9 +365,9 @@
   .av-selected-wash {
     background-image: linear-gradient(
       90deg,
-      color-mix(in oklab, var(--av-accent-violet) 30%, transparent) 0%,
-      color-mix(in oklab, var(--av-accent-blue) 14%, transparent) 45%,
-      color-mix(in oklab, var(--av-accent-teal) 3%, transparent) 100%
+      color-mix(in oklab, var(--av-accent-violet) calc(var(--av-wash-1) * 100%), transparent) 0%,
+      color-mix(in oklab, var(--av-accent-blue) calc(var(--av-wash-2) * 100%), transparent) 45%,
+      color-mix(in oklab, var(--av-accent-teal) calc(var(--av-wash-3) * 100%), transparent) 100%
     );
   }
 
@@ -424,6 +449,33 @@
   .av-markdown .hljs-title,
   .av-markdown .hljs-name { color: var(--av-accent-blue); }
 
+  /* Selected-row border, tuned by the same per-theme knob as the wash. */
+  .av-selected-border {
+    border-color: color-mix(
+      in oklab,
+      var(--av-accent-violet) calc(var(--av-wash-1) * 130%),
+      transparent
+    );
+  }
+
+  /* Command palette selection. Written here rather than as an arbitrary
+     Tailwind value so it can read the per-theme intensity knobs. */
+  [data-slot="command-item"][data-selected] {
+    border-color: color-mix(
+      in oklab,
+      var(--av-accent-violet) calc(var(--av-wash-1) * 130%),
+      transparent
+    );
+    background-image:
+      linear-gradient(
+        90deg,
+        color-mix(in oklab, var(--av-accent-violet) calc(var(--av-wash-1) * 100%), transparent) 0%,
+        color-mix(in oklab, var(--av-accent-blue) calc(var(--av-wash-2) * 100%), transparent) 50%,
+        color-mix(in oklab, var(--av-accent-teal) calc(var(--av-wash-3) * 100%), transparent) 100%
+      ),
+      linear-gradient(90deg, var(--av-glass-hover) 0%, var(--av-glass-hover) 100%);
+  }
+
   /* Animated iridescent hover background.
 
      Painted on a ::before layer so it never disturbs the element's own
@@ -457,14 +509,14 @@
 
   .av-hover-grad:hover::before,
   .av-hover-grad:focus-visible::before {
-    opacity: 0.16;
+    opacity: var(--av-hover-opacity);
     animation: av-grad-pan 7s linear infinite;
   }
 
   /* Stronger variant for large surfaces (cards, tiles) */
   .av-hover-grad-strong:hover::before,
   .av-hover-grad-strong:focus-visible::before {
-    opacity: 0.26;
+    opacity: var(--av-hover-opacity-strong);
   }
 
   @keyframes av-grad-pan {
@@ -480,8 +532,8 @@
 
   .av-hover-ring:hover {
     box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--av-accent-violet) 45%, transparent),
-      0 8px 26px -12px color-mix(in oklab, var(--av-accent-violet) 55%, transparent);
+      0 0 0 1px color-mix(in oklab, var(--av-accent-violet) calc(var(--av-ring-opacity) * 100%), transparent),
+      0 8px 26px -12px color-mix(in oklab, var(--av-accent-violet) calc(var(--av-ring-opacity) * 120%), transparent);
   }
 }
 

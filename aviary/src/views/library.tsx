@@ -99,7 +99,7 @@ function EntryRow({
       className={cn(
         "av-hover-grad flex w-full items-center gap-3 rounded-[10px] border text-left transition-colors",
         selected
-          ? "av-selected-wash border-violet/40 bg-selected"
+          ? "av-selected-wash av-selected-border bg-selected"
           : "border-border bg-card hover:border-border-strong",
         compact ? "px-3 py-1.5" : "px-3 py-2.5",
       )}
