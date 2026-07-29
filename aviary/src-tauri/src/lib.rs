@@ -2,6 +2,7 @@ mod discovery;
 mod library;
 mod providers;
 mod tokens;
+mod writer;
 
 use discovery::DiscoveryResult;
 use library::{EntryContent, LibrarySnapshot, Project};
@@ -14,6 +15,16 @@ fn scan_library() -> LibrarySnapshot {
 #[tauri::command]
 fn read_entry(path: String) -> Result<EntryContent, String> {
     library::read_entry(&path)
+}
+
+#[tauri::command]
+fn write_entry(
+    path: String,
+    content: String,
+    expected_hash: String,
+    force: bool,
+) -> Result<writer::WriteOutcome, String> {
+    writer::write_entry(&path, &content, &expected_hash, force)
 }
 
 #[tauri::command]
@@ -69,6 +80,7 @@ pub fn run() {
             discover_projects,
             read_entry,
             count_tokens,
+            write_entry,
             list_projects,
             add_project,
             remove_project

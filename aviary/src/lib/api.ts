@@ -67,7 +67,34 @@ export type EntryContent = {
   frontmatter: string | null;
   /** Real count via tiktoken (o200k_base), not a byte heuristic. */
   tokens: number;
+  /** Content hash at read time; sent back on save to detect outside edits. */
+  hash: string;
 };
+
+export type WriteOutcome =
+  | { status: "written"; hash: string; snapshot: string }
+  | { status: "conflict"; diskHash: string; diskContent: string };
+
+type RawWrite =
+  | { status: "written"; hash: string; snapshot: string }
+  | { status: "conflict"; disk_hash: string; disk_content: string };
+
+export async function writeEntry(
+  path: string,
+  content: string,
+  expectedHash: string,
+  force = false,
+): Promise<WriteOutcome> {
+  const r = await invoke<RawWrite>("write_entry", {
+    path,
+    content,
+    expectedHash,
+    force,
+  });
+  return r.status === "written"
+    ? r
+    : { status: "conflict", diskHash: r.disk_hash, diskContent: r.disk_content };
+}
 
 export function readEntry(path: string): Promise<EntryContent> {
   return invoke<EntryContent>("read_entry", { path });

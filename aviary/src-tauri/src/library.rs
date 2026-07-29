@@ -117,6 +117,9 @@ pub struct EntryContent {
     pub frontmatter: Option<String>,
     /// Real token count via tiktoken, not a byte heuristic.
     pub tokens: usize,
+    /// Hash of `raw` at read time. The editor sends this back on save so a
+    /// change made behind its back can be detected.
+    pub hash: String,
 }
 
 /// Reads an entry's content, splitting frontmatter off the body.
@@ -134,6 +137,7 @@ pub fn read_entry(path: &str) -> Result<EntryContent, String> {
 
     Ok(EntryContent {
         tokens: crate::tokens::count(&raw),
+        hash: crate::writer::hash(&raw),
         raw,
         body,
         frontmatter,

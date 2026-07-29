@@ -199,7 +199,7 @@ Honest state of things — the design is well ahead of the implementation.
 | Automatic project discovery, opt-in | ✅ |
 | Entry detail panel with markdown + tokens | ✅ |
 | Indexer + FTS5 search | ⏳ next |
-| Editor with write safety | ⏳ |
+| Editor with write safety | ✅ |
 | MCP config parsing + health checks | ⏳ |
 | Chat driving the real CLI | ⏳ |
 | Context Bundles, `aviary-*` MCP servers | ⏳ |
