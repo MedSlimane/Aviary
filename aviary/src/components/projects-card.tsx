@@ -6,9 +6,7 @@ import {
   Cancel01Icon,
   Folder01Icon,
 } from "@hugeicons/core-free-icons";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SectionLabel } from "@/components/screen-parts";
 import { notify } from "@/lib/notify";
 import {
   addProject,
@@ -18,6 +16,7 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+/** Matches the runner dot colours in the Figma Settings frame. */
 const RUNNER_DOT: Record<string, string> = {
   "Claude Code": "bg-claude",
   Codex: "bg-codex",
@@ -31,7 +30,15 @@ function tilde(p: string) {
   return p.replace(/^\/Users\/[^/]+/, "~");
 }
 
-function Row({
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-semibold tracking-[0.8px] text-tertiary">
+      {children}
+    </p>
+  );
+}
+
+function ProjectRow({
   c,
   onToggle,
   busy,
@@ -41,7 +48,7 @@ function Row({
   busy: boolean;
 }) {
   return (
-    <div className="av-hover-grad flex items-center gap-3 rounded-[10px] border border-border bg-card px-3 py-2.5 transition-colors hover:border-border-strong">
+    <div className="av-hover-grad flex items-center gap-3 rounded-[10px] border border-border bg-elevated px-3 py-2.5 transition-colors hover:border-border-strong">
       <span className="flex size-[28px] shrink-0 items-center justify-center rounded-lg bg-hover">
         <HugeiconsIcon
           icon={Folder01Icon}
@@ -51,19 +58,16 @@ function Row({
         />
       </span>
 
-      <span className="min-w-0 flex-1 space-y-0.5">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-[13px] font-medium">{c.name}</span>
+      <span className="min-w-0 flex-1 space-y-[3px]">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-medium">{c.name}</span>
           {c.runners.map((r) => (
             <span
               key={r}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-elevated px-1.5 py-px text-[10px] text-muted-foreground"
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-hover px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
             >
               <span
-                className={cn(
-                  "size-1 rounded-full",
-                  RUNNER_DOT[r] ?? "bg-tertiary",
-                )}
+                className={cn("size-1 rounded-full", RUNNER_DOT[r] ?? "bg-tertiary")}
               />
               {r}
             </span>
@@ -74,20 +78,24 @@ function Row({
         </span>
       </span>
 
-      <Button
-        size="sm"
-        variant={c.registered ? "ghost" : "outline"}
+      <button
+        type="button"
         disabled={busy}
         onClick={() => onToggle(c)}
-        className="shrink-0"
+        className={cn(
+          "flex shrink-0 items-center gap-1.5 rounded-[7px] px-2.5 py-[5px] text-[11px] font-medium transition-colors disabled:opacity-50",
+          c.registered
+            ? "text-muted-foreground hover:bg-hover hover:text-foreground"
+            : "border border-border-strong bg-hover text-foreground hover:border-violet",
+        )}
       >
         <HugeiconsIcon
           icon={c.registered ? Cancel01Icon : PlusSignIcon}
-          size={13}
+          size={12}
           strokeWidth={2}
         />
         {c.registered ? "Remove" : "Add"}
-      </Button>
+      </button>
     </div>
   );
 }
@@ -136,25 +144,29 @@ export function ProjectsCard() {
     }
   };
 
-  const registered = items?.filter((c) => c.registered) ?? [];
+  const tracked = items?.filter((c) => c.registered) ?? [];
   const found = items?.filter((c) => !c.registered) ?? [];
-  const visible = showAll ? found : found.slice(0, 6);
+  const visible = showAll ? found : found.slice(0, 3);
 
   return (
     <section className="space-y-3.5 rounded-[14px] border border-border bg-card p-5">
       <div className="flex items-center gap-3">
-        <div className="flex-1">
+        <div className="flex-1 space-y-1">
           <SectionLabel>PROJECTS</SectionLabel>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             {items
-              ? `${registered.length} tracked · ${found.length} found nearby · ${scannedMs}ms`
+              ? `${tracked.length} tracked · ${found.length} found nearby · ${scannedMs}ms`
               : "Looking for projects with agent config…"}
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => void scan()}>
+        <button
+          type="button"
+          onClick={() => void scan()}
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-elevated px-3 py-1.5 text-xs font-medium transition-colors hover:border-border-strong"
+        >
           <HugeiconsIcon icon={RefreshIcon} size={13} strokeWidth={1.8} />
           Rescan
-        </Button>
+        </button>
       </div>
 
       {!items ? (
@@ -164,44 +176,30 @@ export function ProjectsCard() {
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
-          {registered.length > 0 && (
+        <div className="space-y-3.5">
+          {tracked.length > 0 && (
             <div className="space-y-1.5">
-              {registered.map((c) => (
-                <Row
-                  key={c.path}
-                  c={c}
-                  onToggle={toggle}
-                  busy={busy === c.path}
-                />
+              {tracked.map((c) => (
+                <ProjectRow key={c.path} c={c} onToggle={toggle} busy={busy === c.path} />
               ))}
             </div>
           )}
 
           {found.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold tracking-[0.08em] text-tertiary">
-                DISCOVERED
-              </p>
+              <SectionLabel>DISCOVERED</SectionLabel>
               <div className="space-y-1.5">
                 {visible.map((c) => (
-                  <Row
-                    key={c.path}
-                    c={c}
-                    onToggle={toggle}
-                    busy={busy === c.path}
-                  />
+                  <ProjectRow key={c.path} c={c} onToggle={toggle} busy={busy === c.path} />
                 ))}
               </div>
-              {found.length > 6 && (
+              {found.length > 3 && (
                 <button
                   type="button"
                   onClick={() => setShowAll((v) => !v)}
                   className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  {showAll
-                    ? "Show fewer"
-                    : `Show ${found.length - 6} more`}
+                  {showAll ? "Show fewer" : `Show ${found.length - 3} more`}
                 </button>
               )}
             </div>
@@ -215,7 +213,7 @@ export function ProjectsCard() {
         </div>
       )}
 
-      <p className="text-[11px] text-tertiary">
+      <p className="text-[11px] leading-relaxed text-tertiary">
         Scans a few likely folders for <code className="font-mono">.claude</code>,{" "}
         <code className="font-mono">.codex</code>,{" "}
         <code className="font-mono">CLAUDE.md</code>,{" "}

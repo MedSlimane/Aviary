@@ -125,6 +125,8 @@ export function SettingsView() {
         />
       </Card>
 
+      <ProjectsCard />
+
       <Card title="RUNNERS">
         <Row
           label="Claude Code"
@@ -145,8 +147,6 @@ export function SettingsView() {
           }
         />
       </Card>
-
-      <ProjectsCard />
 
       <Card title="FILES & SAFETY">
         <Row
