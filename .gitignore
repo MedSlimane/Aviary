@@ -33,3 +33,6 @@ yarn-error.log*
 
 # Build output
 aviary/src-tauri/target/
+
+# Release artifacts
+aviary/release/
