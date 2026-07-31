@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { homeDir } from "@tauri-apps/api/path";
+import { scanLibrary, type LibrarySnapshot } from "@/lib/api";
+import { useBoolPreference } from "@/lib/use-preference";
 import * as motionReact from "motion/react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -54,18 +58,45 @@ function Row({
   );
 }
 
+
 export function SettingsView() {
   const { theme, setTheme } = useTheme();
-  const [prefs, setPrefs] = useState({
-    watch: true,
-    snapshot: true,
-    reducedMotion: false,
-    telemetry: false,
-  });
 
-  const set = (key: keyof typeof prefs, label: string) => (v: boolean) => {
-    setPrefs((p) => ({ ...p, [key]: v }));
-    notify(`${label} ${v ? "on" : "off"}`);
+  // Persisted in SQLite, so a toggle survives relaunch. The previous version
+  // held these in `useState` alone and silently reset on every window close.
+  const [reducedMotion, setReducedMotion] = useBoolPreference("ui.reducedMotion");
+  const [allowRiskyModes, setAllowRiskyModes] = useBoolPreference(
+    "chat.allowRiskyPermissionModes",
+  );
+
+  const [library, setLibrary] = useState<LibrarySnapshot | null>(null);
+  const [rebuilding, setRebuilding] = useState(false);
+
+  useEffect(() => {
+    scanLibrary()
+      .then(setLibrary)
+      .catch(() => setLibrary(null));
+  }, []);
+
+  // `index.css` already honours the OS setting; this lets the app opt in
+  // independently of it.
+  useEffect(() => {
+    document.documentElement.dataset.reducedMotion = String(reducedMotion);
+  }, [reducedMotion]);
+
+  const rebuild = async () => {
+    setRebuilding(true);
+    try {
+      const fresh = await scanLibrary(true);
+      setLibrary(fresh);
+      notify("Index rebuilt", {
+        description: `${fresh.entries.length} entries in ${fresh.scannedMs}ms.`,
+      });
+    } catch (e) {
+      notify("Rebuild failed", { description: String(e) });
+    } finally {
+      setRebuilding(false);
+    }
   };
 
   return (
@@ -89,18 +120,14 @@ export function SettingsView() {
                 transition={{ type: "spring", stiffness: 520, damping: 28 }}
                 className={cn(
                   "av-hover-grad relative space-y-2 rounded-xl border p-2 text-left transition-colors",
-                  active
-                    ? "border-violet"
-                    : "border-border hover:border-border-strong",
+                  active ? "border-violet" : "border-border hover:border-border-strong",
                 )}
               >
                 <div
                   className="h-14 w-full rounded-lg ring-1 ring-inset ring-glass-border"
                   style={{ backgroundImage: THEME_SWATCH[t] }}
                 />
-                <p className="px-0.5 text-[11px] font-medium">
-                  {THEMES[t].label}
-                </p>
+                <p className="px-0.5 text-[11px] font-medium">{THEMES[t].label}</p>
                 {active && (
                   <motion.span
                     layoutId="theme-active"
@@ -116,91 +143,86 @@ export function SettingsView() {
           label="Reduce motion"
           hint="Disable springs and staggered reveals"
           control={
-            <Switch
-              checked={prefs.reducedMotion}
-              onCheckedChange={set("reducedMotion", "Reduced motion")}
-            />
+            <Switch checked={reducedMotion} onCheckedChange={setReducedMotion} />
           }
         />
       </Card>
 
       <Card title="RUNNERS">
-        <Row
-          label="Claude Code"
-          hint="~/.claude"
-          control={
-            <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground">
-              detected
-            </span>
-          }
-        />
-        <Row
-          label="Codex"
-          hint="~/.codex"
-          control={
-            <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground">
-              detected
-            </span>
-          }
-        />
+        {library === null ? (
+          <p className="text-[11px] text-tertiary">Checking…</p>
+        ) : (
+          library.runners.map((r) => (
+            <Row
+              key={r.runner}
+              label={r.label}
+              hint={r.root.replace(/^\/Users\/[^/]+/, "~")}
+              control={
+                <span
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px]",
+                    r.detected
+                      ? "border-border bg-elevated text-muted-foreground"
+                      : "border-border text-tertiary",
+                  )}
+                >
+                  {r.detected ? "detected" : "not found"}
+                </span>
+              }
+            />
+          ))
+        )}
       </Card>
 
       <Card title="FILES & SAFETY">
         <Row
-          label="Watch for external changes"
-          hint="Re-index when files change outside Aviary"
+          label="Snapshot before every write"
+          hint="Always on. The previous content is copied to ~/.aviary/history before an edit lands, and a write is refused if the file changed underneath you."
           control={
-            <Switch
-              checked={prefs.watch}
-              onCheckedChange={set("watch", "File watching")}
-            />
+            <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground">
+              always on
+            </span>
           }
         />
         <Row
-          label="Snapshot before every write"
-          hint="Keeps a copy in ~/.aviary/history so edits are reversible"
+          label="Allow risky permission modes"
+          hint="Shows dontAsk and bypassPermissions in the chat composer. Those let a runner execute commands without asking you first."
           control={
-            <Switch
-              checked={prefs.snapshot}
-              onCheckedChange={set("snapshot", "Snapshots")}
-            />
+            <Switch checked={allowRiskyModes} onCheckedChange={setAllowRiskyModes} />
           }
         />
         <div className="space-y-2">
-          <Label htmlFor="library-root" className="text-[13px]">
-            Library root
+          <Label htmlFor="data-folder" className="text-[13px]">
+            Data folder
           </Label>
-          <Input
-            id="library-root"
-            defaultValue="~/.aviary"
-            className="font-mono text-xs"
-          />
+          <Input id="data-folder" value="~/.aviary" readOnly className="font-mono text-xs" />
         </div>
       </Card>
 
       <Card title="PRIVACY">
         <Row
-          label="Anonymous telemetry"
-          hint="Off by default. Never includes file contents."
+          label="Telemetry"
+          hint="There is none. Aviary makes no network requests of its own — only the runners you launch talk to the outside world."
           control={
-            <Switch
-              checked={prefs.telemetry}
-              onCheckedChange={set("telemetry", "Telemetry")}
-            />
+            <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground">
+              none
+            </span>
           }
         />
         <div className="flex gap-2 pt-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => notify("Index rebuilt", { description: "1,284 entries in 82ms." })}
-          >
-            Rebuild index
+          <Button variant="outline" size="sm" disabled={rebuilding} onClick={rebuild}>
+            {rebuilding ? "Rebuilding…" : "Rebuild index"}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => notify("Opened ~/.aviary")}
+            onClick={async () => {
+              try {
+                await revealItemInDir(`${await homeDir()}/.aviary/`);
+              } catch (e) {
+                notify("Could not open the folder", { description: String(e) });
+              }
+            }}
           >
             Reveal data folder
           </Button>

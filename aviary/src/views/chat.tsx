@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { EffortSlider } from "@/components/effort-slider";
 import { LabMark, RUNNER_LAB } from "@/lib/lab-marks";
 import { notify } from "@/lib/notify";
+import { useBoolPreference } from "@/lib/use-preference";
 import { cn } from "@/lib/utils";
 
 const { motion, AnimatePresence } = motionReact;
@@ -683,6 +684,15 @@ function ModePicker({
   onChange: (m: PermissionMode) => void;
 }) {
   const meta = PERMISSION_MODES.find((m) => m.id === mode)!;
+
+  // The two modes that let a runner act without asking are hidden unless the
+  // user has explicitly enabled them in Settings. They stay one deliberate
+  // decision away rather than one click away in the composer.
+  const [allowRisky] = useBoolPreference("chat.allowRiskyPermissionModes");
+  const offered = PERMISSION_MODES.filter(
+    (m) => allowRisky || m.tone !== "risky" || m.id === mode,
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -711,7 +721,7 @@ function ModePicker({
           }}
         >
           <DropdownMenuLabel>Permission mode</DropdownMenuLabel>
-          {PERMISSION_MODES.map((m) => (
+          {offered.map((m) => (
             <DropdownMenuRadioItem key={m.id} value={m.id}>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: aviary
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: aviary/src-tauri
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      # The suite deliberately reads the real machine (~/.claude, ~/.codex).
+      # A bare runner has neither, so those tests assert on an empty result
+      # rather than failing — see the `scans_real_machine` tests.
+      - name: Rust tests
+        run: cargo test --lib
+        working-directory: aviary/src-tauri
+
+      - name: Build release binaries
+        run: cargo build --release --bins
+        working-directory: aviary/src-tauri

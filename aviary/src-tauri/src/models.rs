@@ -319,7 +319,14 @@ mod tests {
         for m in x.models.iter().take(6) {
             eprintln!("  {:<18} {:?}", m.label, m.id);
         }
-        assert!(x.models.len() > 1, "expected models from the live cache");
+        // Claude's aliases are compiled in, so that assertion holds anywhere.
+        // Codex's list is read from the machine, so it only holds where Codex
+        // is actually installed — a bare CI runner has none.
+        if crate::providers::codex::root().is_some_and(|r| r.is_dir()) {
+            assert!(x.models.len() > 1, "expected models from the live cache");
+        } else {
+            eprintln!("skipped: Codex not installed on this machine");
+        }
 
         let sol = x.models.iter().find(|m| m.id.as_deref() == Some("gpt-5.6-sol"));
         if let Some(sol) = sol {
