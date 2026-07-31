@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
+# Two binaries now ship: the desktop app and the aviary-media MCP server.
+# `cargo run` needs to know which one is the app.
+default-run = "aviary"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,7 +21,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -28,4 +31,26 @@ gray_matter = "0.3.2"
 anyhow = "1.0.104"
 tiktoken-rs = "0.12.0"
 toml = "1.1.4"
+# `bundled` compiles SQLite in, so there is no dependency on the host's copy
+# and FTS5 is guaranteed present.
+rusqlite = { version = "0.32", features = ["bundled"] }
+sha2 = "0.10"
+# Default features pull in every codec; the media board only needs the formats
+# a designer actually drops in, and this keeps build times sane.
+image = { version = "0.25", default-features = false, features = [
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "bmp",
+    "tiff",
+] }
+tauri-plugin-dialog = "2.7.2"
+
+# Local MCP server exposing the media board to any agent, in or out of Aviary.
+# Separate binary because MCP speaks stdio: the desktop app cannot also be the
+# thing a bare `claude` session spawns.
+[[bin]]
+name = "aviary-media"
+path = "src/bin/aviary_media.rs"
 

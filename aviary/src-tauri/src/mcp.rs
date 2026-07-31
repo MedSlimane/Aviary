@@ -39,7 +39,7 @@ pub enum Transport {
     Sse,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Server {
     pub name: String,
     pub transport: Transport,
@@ -62,7 +62,8 @@ pub struct Server {
     pub config_path: String,
 }
 
-#[derive(Debug, Serialize)]
+// Round-trips through the scan cache, so it must deserialise too.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct McpSnapshot {
     pub servers: Vec<Server>,
     pub scanned_ms: u64,

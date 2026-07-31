@@ -46,7 +46,8 @@ pub struct Candidate {
     pub registered: bool,
 }
 
-#[derive(Debug, Serialize)]
+// Round-trips through the scan cache, so it must deserialise too.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DiscoveryResult {
     pub candidates: Vec<Candidate>,
     pub scanned_ms: u64,

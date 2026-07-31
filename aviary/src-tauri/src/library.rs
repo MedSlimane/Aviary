@@ -3,49 +3,16 @@
 //! Scope is user-global plus explicitly registered projects — never an
 //! auto-crawl of the home directory, which would be slow and would surface
 //! repos the user does not care about.
+//!
+//! The project list itself lives in `store` (SQLite) rather than a JSON file;
+//! `store::migrate_settings_json` lifts the old `settings.json` on first run.
 
 use crate::providers::{self, Entry, Runner};
+use crate::store::{self, Project};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Project {
-    pub name: String,
-    pub path: String,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Settings {
-    #[serde(default)]
-    pub projects: Vec<Project>,
-}
-
-pub fn config_dir() -> Option<PathBuf> {
-    providers::home().map(|h| h.join(".aviary"))
-}
-
-fn settings_path() -> Option<PathBuf> {
-    config_dir().map(|d| d.join("settings.json"))
-}
-
-pub fn load_settings() -> Settings {
-    let Some(path) = settings_path() else {
-        return Settings::default();
-    };
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_default()
-}
-
-pub fn save_settings(settings: &Settings) -> Result<(), String> {
-    let dir = config_dir().ok_or("no home directory")?;
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-    std::fs::write(dir.join("settings.json"), json).map_err(|e| e.to_string())
-}
-
-#[derive(Debug, Serialize)]
+// Round-trips through the scan cache, so it must deserialise too.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LibrarySnapshot {
     pub entries: Vec<Entry>,
     pub projects: Vec<Project>,
@@ -54,7 +21,7 @@ pub struct LibrarySnapshot {
     pub scanned_ms: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RunnerStatus {
     pub runner: Runner,
     pub label: String,
@@ -64,14 +31,14 @@ pub struct RunnerStatus {
 
 pub fn scan() -> LibrarySnapshot {
     let started = std::time::Instant::now();
-    let settings = load_settings();
+    let projects = store::projects();
 
     let mut entries = Vec::new();
     entries.extend(providers::claude_code::scan_user());
     entries.extend(providers::codex::scan_user());
 
-    for project in &settings.projects {
-        let dir = PathBuf::from(&project.path);
+    for project in &projects {
+        let dir = std::path::PathBuf::from(&project.path);
         if !dir.is_dir() {
             continue;
         }
@@ -102,7 +69,7 @@ pub fn scan() -> LibrarySnapshot {
 
     LibrarySnapshot {
         entries,
-        projects: settings.projects,
+        projects,
         runners,
         scanned_ms: started.elapsed().as_millis() as u64,
     }
@@ -166,7 +133,14 @@ mod tests {
                 e.kind, e.source, e.name, e.runners, e.description
             );
         }
-        assert!(!snap.entries.is_empty(), "expected to find real entries");
+        // A bare CI runner has no ~/.claude or ~/.codex. Skip rather than
+        // fail: the point of this test is to exercise a real machine, and an
+        // empty result there is correct, not broken.
+        if snap.runners.iter().any(|r| r.detected) {
+            assert!(!snap.entries.is_empty(), "a detected runner should yield entries");
+        } else {
+            eprintln!("skipped assertions: no runner installed on this machine");
+        }
     }
 }
 
@@ -177,11 +151,14 @@ mod read_tests {
     #[test]
     fn reads_a_real_skill() {
         let snap = scan();
-        let skill = snap
+        let Some(skill) = snap
             .entries
             .iter()
             .find(|e| matches!(e.kind, crate::providers::Kind::Skill))
-            .expect("expected at least one skill");
+        else {
+            eprintln!("skipped: no skills installed on this machine");
+            return;
+        };
 
         let c = read_entry(&skill.path).expect("should read");
         eprintln!("entry:       {}", skill.name);
