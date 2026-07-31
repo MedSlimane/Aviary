@@ -49,8 +49,13 @@ export const RUNNER_LABEL: Record<Runner, string> = {
   codex: "Codex",
 };
 
-export async function scanLibrary(): Promise<LibrarySnapshot> {
-  const raw = await invoke<RawSnapshot>("scan_library");
+/**
+ * Scans are cached in SQLite. Called without `fresh` they return the last
+ * snapshot immediately — a cold launch paints real content instead of a
+ * spinner. Pass `fresh` to force a walk of the filesystem.
+ */
+export async function scanLibrary(fresh = false): Promise<LibrarySnapshot> {
+  const raw = await invoke<RawSnapshot>("scan_library", { fresh });
   return {
     ...raw,
     scannedMs: raw.scanned_ms,
@@ -127,8 +132,8 @@ export type Candidate = {
 type RawDiscovery = { candidates: Candidate[]; scanned_ms: number; roots: string[] };
 export type Discovery = { candidates: Candidate[]; scannedMs: number; roots: string[] };
 
-export async function discoverProjects(): Promise<Discovery> {
-  const raw = await invoke<RawDiscovery>("discover_projects");
+export async function discoverProjects(fresh = false): Promise<Discovery> {
+  const raw = await invoke<RawDiscovery>("discover_projects", { fresh });
   return { candidates: raw.candidates, scannedMs: raw.scanned_ms, roots: raw.roots };
 }
 
@@ -157,8 +162,148 @@ type RawServer = Omit<McpServer, "envKeys" | "configPath"> & {
 
 export type McpSnapshot = { servers: McpServer[]; scannedMs: number };
 
-export async function scanMcp(): Promise<McpSnapshot> {
-  const raw = await invoke<{ servers: RawServer[]; scanned_ms: number }>("scan_mcp");
+// ----------------------------------------------------------------- media ---
+
+export type MediaItem = {
+  /** sha256 of the bytes — the identity, and stable across renames. */
+  hash: string;
+  kind: "image" | "video" | "file";
+  ext: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  orientation: "landscape" | "portrait" | "square" | null;
+  /** `#rrggbb`, doubles as the tile placeholder while the thumb decodes. */
+  dominant: string | null;
+  /** Where it was imported from. Provenance only — never read back. */
+  origin: string | null;
+  title: string | null;
+  note: string | null;
+  addedAt: number;
+  tags: string[];
+  /** Absolute path to the stored original. */
+  path: string;
+  /** Absolute path to the cached thumbnail, when one was generated. */
+  thumb: string | null;
+};
+
+export type MediaCollection = { id: number; name: string; count: number };
+
+type RawMedia = Omit<MediaItem, "addedAt"> & { added_at: number };
+
+const toMedia = ({ added_at, ...m }: RawMedia): MediaItem => ({
+  ...m,
+  addedAt: added_at,
+});
+
+export async function importMedia(paths: string[]): Promise<MediaItem[]> {
+  const raw = await invoke<RawMedia[]>("import_media", { paths });
+  return raw.map(toMedia);
+}
+
+export async function listMedia(collection?: number): Promise<MediaItem[]> {
+  const raw = await invoke<RawMedia[]>("list_media", {
+    collection: collection ?? null,
+  });
+  return raw.map(toMedia);
+}
+
+export async function searchMedia(
+  query: string,
+  limit?: number,
+): Promise<MediaItem[]> {
+  const raw = await invoke<RawMedia[]>("search_media", {
+    query,
+    limit: limit ?? null,
+  });
+  return raw.map(toMedia);
+}
+
+export function removeMedia(hash: string): Promise<void> {
+  return invoke("remove_media", { hash });
+}
+
+export function setMediaTags(hash: string, tags: string[]): Promise<void> {
+  return invoke("set_media_tags", { hash, tags });
+}
+
+export function listCollections(): Promise<MediaCollection[]> {
+  return invoke<MediaCollection[]>("list_collections");
+}
+
+export function createCollection(name: string): Promise<number> {
+  return invoke<number>("create_collection", { name });
+}
+
+export function setCollectionMembership(
+  collectionId: number,
+  hash: string,
+  member: boolean,
+): Promise<void> {
+  return invoke("set_collection_membership", { collectionId, hash, member });
+}
+
+// ----------------------------------------------------------- preferences ---
+
+export function getPreference(key: string): Promise<string | null> {
+  return invoke<string | null>("get_preference", { key });
+}
+
+export function setPreference(key: string, value: string): Promise<void> {
+  return invoke("set_preference", { key, value });
+}
+
+/** Which part of the instruction stack a layer belongs to. */
+export type ContextScope =
+  | "system"
+  | "user"
+  | "project"
+  | "local"
+  | "skills"
+  | "mcp"
+  | "memory";
+
+export type ContextLayer = {
+  scope: ContextScope;
+  label: string;
+  /** Path on disk, or a summary when the layer aggregates several files. */
+  path: string;
+  tokens: number;
+  /**
+   * False when the cost cannot be read from disk — a built-in system prompt, or
+   * MCP tool schemas that only arrive after a handshake. Such layers contribute
+   * nothing to `total` and must not be drawn as a size.
+   */
+  measured: boolean;
+  note: string | null;
+  bytes: number;
+};
+
+export type ResolvedContext = {
+  runner: Runner;
+  cwd: string;
+  /** In load order: shallowest first, so the last entry wins. */
+  layers: ContextLayer[];
+  /** Sum over measured layers only. */
+  total: number;
+  unmeasured: number;
+  scannedMs: number;
+};
+
+export async function resolveContext(
+  runner: Runner,
+  cwd: string,
+): Promise<ResolvedContext> {
+  const raw = await invoke<Omit<ResolvedContext, "scannedMs"> & { scanned_ms: number }>(
+    "resolve_context",
+    { runner, cwd },
+  );
+  const { scanned_ms, ...rest } = raw;
+  return { ...rest, scannedMs: scanned_ms };
+}
+
+export async function scanMcp(fresh = false): Promise<McpSnapshot> {
+  const raw = await invoke<{ servers: RawServer[]; scanned_ms: number }>("scan_mcp", { fresh });
   return {
     scannedMs: raw.scanned_ms,
     servers: raw.servers.map(({ env_keys, config_path, ...s }) => ({
