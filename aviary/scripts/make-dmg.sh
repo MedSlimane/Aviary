@@ -24,6 +24,16 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
+# `lipo` strips the linker's ad-hoc signature, so a universal bundle arrives
+# completely unsigned — macOS then reports it as damaged rather than merely
+# untrusted. Re-sign ad-hoc so the bundle has a valid (if unauthenticated)
+# signature. This is not notarisation and does not satisfy Gatekeeper; it only
+# ensures the app is well-formed. Set SIGN_IDENTITY to use a real Developer ID.
+IDENTITY="${SIGN_IDENTITY:--}"
+echo "Signing $APP with identity: $IDENTITY"
+codesign --force --deep --timestamp=none --sign "$IDENTITY" "$APP"
+codesign --verify --deep --strict "$APP"
+
 mkdir -p "$OUT_DIR"
 rm -f "$DMG"
 

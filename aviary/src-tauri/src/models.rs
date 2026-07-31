@@ -344,10 +344,23 @@ mod tests {
             opus.reasoning_levels.iter().map(|l| &l.effort).collect::<Vec<_>>(),
             opus.default_effort
         );
-        assert!(!opus.reasoning_levels.is_empty(), "effort levels should parse from --help");
-        assert!(
-            opus.reasoning_levels.iter().any(|l| l.effort == "ultracode"),
-            "ultracode is accepted by the CLI but missing from --help; the probe should find it"
-        );
+        // Effort levels are read from `claude --help` and a live probe, so this
+        // only holds where the CLI is installed. CI runners have no runners.
+        if which_claude() {
+            assert!(!opus.reasoning_levels.is_empty(), "effort levels should parse from --help");
+            assert!(
+                opus.reasoning_levels.iter().any(|l| l.effort == "ultracode"),
+                "ultracode is accepted by the CLI but missing from --help; the probe should find it"
+            );
+        } else {
+            eprintln!("skipped: the claude CLI is not on PATH");
+        }
+    }
+
+    fn which_claude() -> bool {
+        std::process::Command::new("claude")
+            .arg("--version")
+            .output()
+            .is_ok_and(|o| o.status.success())
     }
 }
