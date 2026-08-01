@@ -20,7 +20,8 @@ comes next all read from.
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![Rust](https://img.shields.io/badge/Rust-1.94-CE422B?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-![Status](https://img.shields.io/badge/status-in%20development-A78BFA?style=flat-square)
+[![Release](https://img.shields.io/github/v/release/MedSlimane/Aviary?include_prereleases&style=flat-square&color=A78BFA)](https://github.com/MedSlimane/Aviary/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/MedSlimane/Aviary/ci.yml?branch=main&style=flat-square)](https://github.com/MedSlimane/Aviary/actions)
 
 </div>
 
@@ -125,20 +126,27 @@ This is what makes an inspiration board useful rather than decorative — ask fo
 ## Architecture
 
 ```
-src-tauri/
-├─ providers/      trait Provider — one file per runner, the blast radius
+src-tauri/src/
+├─ providers/      one file per runner — the blast radius for format drift
 │  ├─ claude_code.rs
 │  └─ codex.rs
-├─ library.rs      assembly, registered projects, settings
-├─ indexer/        notify watcher → parse → SQLite FTS5          (next)
-├─ runner/         CLI supervisor, NDJSON → Tauri channel        (planned)
-└─ mcp_hub/        config read/write, health, aviary-* servers   (planned)
+├─ library.rs      index assembly, registered projects
+├─ context.rs      resolves the instruction stack for (runner, cwd)
+├─ mcp.rs          MCP server discovery across user/plugin/project configs
+├─ media.rs        content-addressed media store, thumbnails, auto-tagging
+├─ mcp_media.rs    JSON-RPC for the aviary-media MCP server
+├─ bin/            aviary_media.rs — the MCP server binary (stdio)
+├─ runner.rs       CLI supervisor, NDJSON → Tauri channel
+├─ models.rs       model + effort discovery, per runner
+├─ store.rs        SQLite — data.db (durable) and cache.db (disposable)
+├─ writer.rs       atomic writes, snapshots, conflict detection
+└─ tokens.rs       tiktoken (o200k_base)
 
 src/
 ├─ views/          home · chat · library · projects · mcp · context · inspiration · settings
 ├─ components/     rail, title bar, shared screen parts
-├─ lib/            api, theme, motion, notify
-└─ index.css       Figma tokens → shadcn tokens bridge
+├─ lib/            api (the only IPC boundary), theme, motion, notify
+└─ index.css       design tokens → shadcn token bridge
 ```
 
 **Files are the source of truth.** The index is a disposable cache — delete it
@@ -180,33 +188,35 @@ bun run tauri dev
 ```
 
 ```bash
-bun run build          # typecheck + build the frontend
-cargo check            # from src-tauri/
-cargo test -- --nocapture   # provider scan against your real machine
+bunx tsc --noEmit                  # typecheck the frontend
+cd src-tauri && cargo test --lib   # 28 tests, against your real machine
+./scripts/make-dmg.sh              # universal DMG — see docs/RELEASING.md
 ```
 
 <br />
 
 ## Status
 
-Honest state of things — the design is well ahead of the implementation.
+**[`v0.1.0-alpha.1`](https://github.com/MedSlimane/Aviary/releases/tag/v0.1.0-alpha.1)** — universal macOS DMG. Ad-hoc signed, not notarised: right-click → Open on first launch.
+
+Every surface below reads your real machine. **There is no mock data in the app.**
 
 | | |
 |---|---|
-| Design system + 9 screens in Figma | ✅ |
-| Tauri shell, all 7 views, theming, ⌘K | ✅ |
-| Real library discovery from disk | ✅ |
-| Projects screen — auto-discovery, opt-in tracking | ✅ |
-| Entry detail panel with markdown + tokens | ✅ |
-| Indexer + FTS5 search | ⏳ next |
-| Editor with write safety | ✅ |
-| MCP config parsing | ✅ |
-| MCP stdio health checks | ⏳ |
-| Chat driving the real CLI | ✅ |
-| Context Bundles, `aviary-*` MCP servers | ⏳ |
+| Library — discovery, dedupe, editor with write safety | ✅ |
+| Projects — auto-discovery, opt-in tracking | ✅ |
+| MCP servers — discovery across user, plugin and project configs | ✅ |
+| Chat — drives the real CLI, model and effort discovered | ✅ |
+| Context — resolved instruction stack with real token costs | ✅ |
+| Inspiration — content-addressed media board, auto-tagging | ✅ |
+| `aviary-media` MCP server | ✅ |
+| SQLite store + scan cache (101 ms → 1 ms) | ✅ |
+| Auto-updater · notarisation · file watching | ⏳ P1 |
+| Chat session persistence · permission approval UI | ⏳ P2 |
+| MCP health checks · tool-definition token costs | ⏳ P3 |
+| Context Bundles · `aviary-library` MCP server | ⏳ P4 |
 
-Inspiration still renders designed UI over sample data. Library, Projects,
-MCP and Chat all work against your real machine.
+The full plan is in **[`docs/ROADMAP.md`](docs/ROADMAP.md)**.
 
 <br />
 
@@ -214,13 +224,19 @@ MCP and Chat all work against your real machine.
 
 ```
 aviary/        the app
+ios/           SwiftUI companion prototype — designed, not shipped
 assets/        brand, textures, generated floral photography, tokens
-docs/          design spec and images
+docs/          architecture, roadmap, release runbook, design spec
 ```
 
-The full design rationale — architecture, write-safety rules, performance
-contract, risks and phasing — is in
-[`docs/superpowers/specs/2026-07-28-aviary-design.md`](docs/superpowers/specs/2026-07-28-aviary-design.md).
+| Document | |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How it is put together, and why |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | What ships next, and what is deliberately not built |
+| [`docs/RELEASING.md`](docs/RELEASING.md) | Build runbook — two non-obvious traps |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, and what gets a change rejected |
+| [`CLAUDE.md`](CLAUDE.md) | Rules for agents working in this repo (`AGENTS.md` symlinks here) |
+| [design spec](docs/superpowers/specs/2026-07-28-aviary-design.md) | Original rationale, risks and phasing |
 
 <br />
 
