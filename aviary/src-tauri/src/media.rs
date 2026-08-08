@@ -204,7 +204,11 @@ pub fn import(source: &Path) -> Result<MediaItem, String> {
                     let _ = std::fs::create_dir_all(parent);
                 }
                 let thumb = img.thumbnail(THUMB_SIZE, THUMB_SIZE);
-                if thumb.to_rgb8().save_with_format(&tp, image::ImageFormat::Jpeg).is_ok() {
+                if thumb
+                    .to_rgb8()
+                    .save_with_format(&tp, image::ImageFormat::Jpeg)
+                    .is_ok()
+                {
                     let _ = store::cache().execute(
                         "INSERT OR REPLACE INTO thumb(hash, size, path) VALUES (?1, ?2, ?3)",
                         params![hash, THUMB_SIZE as i64, tp.to_string_lossy()],
@@ -291,7 +295,7 @@ fn row_to_item(conn: &rusqlite::Connection, row: &rusqlite::Row) -> rusqlite::Re
             .unwrap_or_default(),
         tags: tags_for(conn, &hash),
         thumb,
-        bytes: row.get::<_, i64>("bytes")? as u64,
+        bytes: row.get::<_, u64>("bytes")?,
         width: row.get("width")?,
         height: row.get("height")?,
         orientation: row.get("orientation")?,
@@ -311,6 +315,23 @@ pub fn get(hash: &str) -> Option<MediaItem> {
     conn.query_row("SELECT * FROM media WHERE hash = ?1", [hash], |r| {
         row_to_item(&conn, r)
     })
+    .ok()
+}
+
+/// Fetches an item only when it belongs to the requested collection.
+///
+/// The collection predicate is part of the query rather than a check after
+/// `get`: a scoped MCP server must not reveal whether an out-of-scope hash
+/// exists elsewhere on the board.
+pub fn get_in_collection(hash: &str, collection_id: i64) -> Option<MediaItem> {
+    let conn = store::data();
+    conn.query_row(
+        "SELECT m.* FROM media m
+         JOIN collection_media cm ON cm.media_hash = m.hash
+         WHERE m.hash = ?1 AND cm.collection_id = ?2",
+        params![hash, collection_id],
+        |row| row_to_item(&conn, row),
+    )
     .ok()
 }
 
@@ -368,6 +389,32 @@ pub fn search(query: &str, limit: usize) -> Vec<MediaItem> {
         .unwrap_or_default()
 }
 
+/// Full-text search whose SQL predicate enforces collection membership.
+pub fn search_in_collection(query: &str, limit: usize, collection_id: i64) -> Vec<MediaItem> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return list(Some(collection_id)).into_iter().take(limit).collect();
+    }
+    let fts = format!("\"{}\"*", trimmed.replace('"', ""));
+    let conn = store::data();
+    let Ok(mut statement) = conn.prepare(
+        "SELECT m.* FROM media_fts f
+         JOIN media m ON m.hash = f.hash
+         JOIN collection_media cm ON cm.media_hash = m.hash
+         WHERE media_fts MATCH ?1 AND cm.collection_id = ?2
+         ORDER BY rank, m.added_at DESC, m.hash
+         LIMIT ?3",
+    ) else {
+        return Vec::new();
+    };
+    statement
+        .query_map(params![fts, collection_id, limit as i64], |row| {
+            row_to_item(&conn, row)
+        })
+        .map(|rows| rows.filter_map(Result::ok).collect())
+        .unwrap_or_default()
+}
+
 pub fn remove(hash: &str) -> Result<(), String> {
     // Cascades clear tags and collection membership.
     store::data()
@@ -421,6 +468,26 @@ pub fn collections() -> Vec<Collection> {
     })
     .map(|rows| rows.filter_map(Result::ok).collect())
     .unwrap_or_default()
+}
+
+pub fn collection(id: i64) -> Option<Collection> {
+    let conn = store::data();
+    conn.query_row(
+        "SELECT c.id, c.name, count(cm.media_hash)
+           FROM collection c
+           LEFT JOIN collection_media cm ON cm.collection_id = c.id
+          WHERE c.id = ?1
+          GROUP BY c.id",
+        [id],
+        |row| {
+            Ok(Collection {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                count: row.get(2)?,
+            })
+        },
+    )
+    .ok()
 }
 
 pub fn create_collection(name: &str) -> Result<i64, String> {
@@ -507,7 +574,11 @@ mod tests {
             let item = get(&hash).expect("must be readable back");
             assert_eq!((item.width, item.height), (Some(64), Some(32)));
             assert_eq!(item.orientation.as_deref(), Some("landscape"));
-            assert!(item.tags.contains(&"teal".to_string()), "tags: {:?}", item.tags);
+            assert!(
+                item.tags.contains(&"teal".to_string()),
+                "tags: {:?}",
+                item.tags
+            );
             assert!(item.tags.contains(&"landscape".to_string()));
             assert!(
                 Path::new(&item.path).is_file(),

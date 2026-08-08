@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   SparklesIcon,
   BotIcon,
   TextAlignLeftIcon,
   CommandIcon,
+  Copy01Icon,
   Note01Icon,
   RefreshIcon,
   Alert02Icon,
@@ -26,7 +27,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLibrary } from "@/lib/use-library";
-import { RUNNER_LABEL, type Entry, type Kind, type Runner } from "@/lib/api";
+import {
+  libraryMcpRegistration,
+  RUNNER_LABEL,
+  type Entry,
+  type Kind,
+  type Runner,
+} from "@/lib/api";
+import { claudeMcpRegistrationCommand } from "@/lib/mcp-registration";
 import { PageHeader, SectionLabel, Segmented } from "@/components/screen-parts";
 import { notify } from "@/lib/notify";
 import { EntryDetail } from "@/components/entry-detail";
@@ -177,7 +185,28 @@ export function LibraryView() {
   const [sortBy, setSortBy] = useState<SortBy>("Name");
   const [showPlugins, setShowPlugins] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [selected, setSelected] = useState<Entry | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mcpCommand, setMcpCommand] = useState<string | null>(null);
+  const [mcpError, setMcpError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void libraryMcpRegistration()
+      .then((registration) => {
+        if (live) setMcpCommand(claudeMcpRegistrationCommand(registration));
+      })
+      .catch((reason) => {
+        if (live) setMcpError(String(reason));
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  // Resolve against the latest live snapshot so size, modified time and runner
+  // membership do not stay frozen when the selected row changes on disk.
+  const selected = selectedId
+    ? (data?.entries.find((entry) => entry.id === selectedId) ?? null)
+    : null;
 
   const visible = useMemo(() => {
     if (!data) return [];
@@ -220,7 +249,9 @@ export function LibraryView() {
       return next;
     });
 
-  const pluginCount = data?.entries.filter((e) => e.source === "plugin").length ?? 0;
+  const pluginCount = data
+    ? data.entries.filter((e) => e.source === "plugin").length
+    : null;
 
   const subtitle = data
     ? `${visible.length} of ${data.entries.length} entries · ${data.runners
@@ -239,6 +270,27 @@ export function LibraryView() {
         subtitle={subtitle}
         action={
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full"
+              disabled={!mcpCommand}
+              title={mcpError ?? "Copy the installed aviary-library registration"}
+              onClick={async () => {
+                if (!mcpCommand) return;
+                try {
+                  await navigator.clipboard.writeText(mcpCommand);
+                  notify("Copied aviary-library registration");
+                } catch (reason) {
+                  notify("Could not copy MCP registration", {
+                    description: String(reason),
+                  });
+                }
+              }}
+            >
+              <HugeiconsIcon icon={Copy01Icon} size={14} strokeWidth={1.8} />
+              {mcpError ? "MCP unavailable" : "Copy MCP command"}
+            </Button>
             <ViewMenu
               groupBy={groupBy}
               setGroupBy={setGroupBy}
@@ -335,9 +387,11 @@ export function LibraryView() {
                         key={e.id}
                         entry={e}
                         density={density}
-                        selected={selected?.id === e.id}
+                        selected={selectedId === e.id}
                         onSelect={() =>
-                          setSelected((cur) => (cur?.id === e.id ? null : e))
+                          setSelectedId((current) =>
+                            current === e.id ? null : e.id,
+                          )
                         }
                       />
                     ))}
@@ -357,7 +411,7 @@ export function LibraryView() {
       </div>
 
       {selected && (
-        <EntryDetail entry={selected} onClose={() => setSelected(null)} />
+        <EntryDetail entry={selected} onClose={() => setSelectedId(null)} />
       )}
     </div>
   );
@@ -372,7 +426,7 @@ function ViewMenu(props: {
   setSortBy: (v: SortBy) => void;
   showPlugins: boolean;
   setShowPlugins: (v: boolean) => void;
-  pluginCount: number;
+  pluginCount: number | null;
 }) {
   return (
     <DropdownMenu>
@@ -425,7 +479,8 @@ function ViewMenu(props: {
             checked={props.showPlugins}
             onCheckedChange={props.setShowPlugins}
           >
-            Show plugin skills ({props.pluginCount})
+            Show plugin skills
+            {props.pluginCount === null ? null : ` (${props.pluginCount})`}
           </DropdownMenuCheckboxItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

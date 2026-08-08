@@ -24,20 +24,25 @@ aviary/
 │  │  └─ codex.rs         ~/.codex layout
 │  ├─ library.rs          assembles the index from providers + registered projects
 │  ├─ context.rs          resolves the instruction stack for (runner, cwd)
-│  ├─ mcp.rs              MCP server discovery across user/plugin/project configs
+│  ├─ mcp.rs              static MCP inventory + explicit bounded health checks
+│  ├─ mcp_protocol.rs     shared bounded MCP JSON-RPC lifecycle
 │  ├─ media.rs            content-addressed media store, thumbnails, auto-tagging
-│  ├─ mcp_media.rs        JSON-RPC handling for the aviary-media MCP server
-│  ├─ bin/aviary_media.rs the MCP server binary (stdio)
-│  ├─ runner.rs           CLI supervisor, NDJSON stream → Tauri channel
+│  ├─ mcp_media.rs        read-only tools for the media MCP server
+│  ├─ mcp_library.rs      read-only tools for the live library MCP server
+│  ├─ launch.rs           private, one-use Terminal handoffs
+│  ├─ bin/                media, library, and launch helper entry points
+│  ├─ runner.rs + runner/ CLI supervisor and runner protocol adapters
 │  ├─ models.rs           model + reasoning-effort discovery, per runner
 │  ├─ discovery.rs        candidate project detection
-│  ├─ store.rs            SQLite — data.db and cache.db
+│  ├─ store.rs + store/   SQLite, sessions, and bundles
+│  ├─ watcher.rs          debounced native filesystem invalidation
+│  ├─ diagnostics.rs      bounded local logs and copyable reports
 │  ├─ writer.rs           atomic writes, snapshots, conflict detection
 │  ├─ tokens.rs           tiktoken (o200k_base)
 │  └─ lib.rs              Tauri commands
 │
 └─ src/
-   ├─ views/              home · chat · library · projects · mcp · context · inspiration · settings
+   ├─ views/              home · chat · library · projects · bundles · mcp · context · inspiration · settings
    ├─ components/         rail, title bar, shared screen parts, shadcn ui
    ├─ lib/                api (the single IPC boundary), theme, motion, notify
    └─ index.css           design tokens → shadcn token bridge
@@ -59,10 +64,11 @@ Consequences:
 
 - **Editing a skill in Aviary changes agent behaviour on the next turn**, with no
   sync or export step, because it is the same file the runner reads.
-- **The database can be deleted** without losing anything a runner needs.
-- **Aviary-only data** — preferences, media, collections, tags — has no home in a
-  runner's format, so it lives in `~/.aviary/` and *is* durable. Hence the split
-  below.
+- **Runner files remain the source for runner configuration.** Deleting
+  `cache.db` changes no behaviour and only costs a re-index.
+- **Aviary-owned data** — preferences, projects, media, collections, chat
+  transcripts and bundles — has no complete home in a runner's format, so it
+  lives in `~/.aviary/data.db` and is durable. Hence the split below.
 
 ### Skills are not owned by a runner
 
@@ -85,20 +91,20 @@ right.
 ├─ cache.db         disposable — safe to delete at any time
 ├─ media/<hash>/    content-addressed originals
 ├─ cache/thumbs/    generated thumbnails
-└─ history/         pre-write snapshots
+├─ history/         pre-write snapshots
+└─ logs/            bounded local crash and error logs
 ```
 
 | | `data.db` | `cache.db` |
 |---|---|---|
-| Holds | preferences, projects, media, collections, tags, entry metadata | library/mcp/project scan snapshots, token counts, thumbnail paths |
+| Holds | preferences, projects, media, collections, tags, chat sessions/turns/events, bundles and attachment snapshots | library/MCP/project scan snapshots, health results, token counts, thumbnail paths |
 | Recreatable | **No** | Yes, by re-scanning |
 | Deleting it | loses your data | costs a re-index |
 
-The split is what makes caching safe. The design rule is *"deleting the database
-must cost nothing but a re-index"* — which only holds if durable data lives
-somewhere else. Both use WAL and `PRAGMA user_version` migrations.
-
-**Measured:** 101 ms fresh scan → 1 ms cached, on a real 117-entry library.
+The split is what makes caching safe. The design rule is *"deleting `cache.db`
+must cost nothing but a re-index"*. Both databases use WAL and explicit,
+transactional `PRAGMA user_version` migrations; a newer durable schema is
+refused instead of guessed at.
 
 ### Identity choices
 
@@ -107,6 +113,8 @@ somewhere else. Both use WAL and `PRAGMA user_version` migrations.
 - **Media** is keyed by the sha256 of its bytes. Re-importing the same file is a
   no-op rather than a duplicate tile, and a tile never dies because the original
   left `~/Downloads`.
+- **Bundles** keep opaque target identities and snapshot labels. A missing
+  target stays missing; it is never silently rebound to a similarly named file.
 
 ---
 
@@ -126,17 +134,49 @@ If you add a code path that writes to a runner's config, it goes through
 
 ---
 
+## Live indexing
+
+`watcher.rs` watches the real provider and project roots. Events are debounced
+with both a quiet period and a maximum deadline, mapped back through canonical
+paths, and refreshed by scope. Atomic replacement and shared symlink targets are
+tested explicitly. A bounded event queue cannot starve watcher control traffic,
+and the UI receives the refreshed real snapshot through a Tauri event.
+
+---
+
+## Diagnostics stay local
+
+Rust panics, rejected frontend IPC calls, React render failures and unhandled
+webview errors are written under `~/.aviary/logs`. The active log rotates at
+1,000,000 bytes and keeps four archives, so this directory is bounded to five
+log files. Aviary does not forward the browser console wholesale: only explicit
+error records are persisted, without command arguments, prompts, environment
+values or config payloads.
+
+The Error Boundary and Settings can build a user-copyable report from runtime
+facts and at most 200,000 bytes from the newest Aviary logs. Home-directory
+paths are shortened to `~`, log reads happen on the blocking pool, and no report
+is uploaded automatically. A process-killing crash can therefore be inspected
+after relaunch from Settings.
+
+---
+
 ## Honesty about what can be measured
 
 `context.rs` exists to answer *"why did the agent behave that way?"*, so its
-value rests entirely on being true. Two rules follow:
+value rests entirely on being true. Every layer carries an optional token count,
+its measurement basis, whether the measurement is complete, whether the runner
+loads it, and whether it contributes to the displayed subtotal.
 
-- **Only count what is on disk.** Every token figure comes from tokenising a real
-  file.
-- **Say so when a cost cannot be known.** The runner's built-in system prompt
-  ships inside the binary; MCP tool schemas only arrive after a handshake. Those
-  layers are reported with `measured: false` and *no token figure* rather than a
-  plausible guess, and are excluded from the total.
+- Files are tokenised from their real bytes with the bundled o200k encoder.
+- MCP discovery is static and inert. Only an explicit, warned health check may
+  start a local server or contact a configured endpoint. A complete tool-list
+  handshake yields an o200k schema estimate cached against the exact runner,
+  directory, declaration revision and expiry.
+- The runner's built-in system prompt is not exposed by either CLI. It therefore
+  has no number and is excluded from the known subtotal.
+- Partial, stale and unavailable measurements stay visibly incomplete. Zero is
+  never used as a substitute for unknown.
 
 A related correction: **skills contribute their frontmatter, not their bodies.**
 A runner lists available skills up front and loads a `SKILL.md` only when
@@ -145,22 +185,30 @@ the entire screen untrustworthy.
 
 ---
 
-## The two chat engines
+## Durable CLI chat
 
-Both emit into one normalised event stream, so the renderer never branches on
-engine:
+Claude Code and Codex emit into one normalised event stream, so transcript
+rendering does not branch on runner:
 
 ```
-SessionEvent = Started | Thinking | Text(delta) | ToolCall | ToolResult
-             | PermissionRequest | TokenUsage | Finished | Error
+SessionEvent = Started | Thinking | Text(delta)
+             | ToolStarted | ToolUpdated | ToolFinished
+             | PermissionRequest | PermissionResolved
+             | TokenUsage | Finished | Interrupted | Failed
 ```
 
-| | CLI engine (default) | API engine |
-|---|---|---|
-| Invocation | `claude -p --output-format stream-json`, `codex exec --json` | provider SDK |
-| Gets | tools, MCP, skills, permissions, session resume — free | nothing but the model |
-| Library edits apply | immediately, same files | n/a |
-| Used for | all agentic work | quick no-tool questions |
+The runner adapters use each installed CLI's machine-readable protocol. Prompts
+go over stdin, never command arguments. A session, its first queued turn, and an
+optional Bundle attachment are committed in one transaction before process
+startup; the UI receives that durable receipt immediately and reconciles the
+terminal state from both the live channel and `data.db`. Runner session IDs are
+bound once and used for real resume after relaunch. Startup reconciliation marks
+orphaned work interrupted rather than replaying it.
+
+Permission requests are durable typed events. The UI allows only decisions the
+runner protocol advertises, guards duplicate submissions, and rejects late
+responses. Tool calls, results, diffs and command output stay structured instead
+of being flattened into invented prose.
 
 Models and reasoning-effort levels are **discovered from the machine** — parsed
 from the CLI's `--help` and probed — never hardcoded. That is why `models.rs`
@@ -168,22 +216,32 @@ has tests that skip when the CLI is absent.
 
 ---
 
-## Aviary serves, it doesn't just show
+## Bundles and bundled helpers
 
-`aviary-media` is a **separate binary** because MCP speaks JSON-RPC over stdio —
-the desktop app cannot be the thing a bare `claude` session spawns. Both read the
-same `data.db`; the server only ever reads, so running it while Aviary is open is
-safe (WAL).
+A Bundle is a durable, revisioned composition of one working directory plus
+optional prompt, skills, agents, memory, MCP declarations and media collection.
+The editor composes only current library identities. Updates use compare-and-set
+revisions, and a chat stores an immutable, secret-free attachment snapshot.
+Runner, working directory and model are locked to that snapshot. Prompt members
+are editable UI prefill and never hidden process input.
 
-```
-claude mcp add aviary-media -- /Applications/aviary.app/Contents/MacOS/aviary-media
-```
+Execution fails closed when a current target is missing or when the installed
+runner has no proven way to represent a member. Aviary does not broaden an MCP
+selection, append memory by guesswork, or invent primary-agent flags.
 
-It is read-only **by construction**, not by convention: no tool in
-`mcp_media.rs` mutates anything, so an agent cannot delete a designer's
-references.
+Three executable helpers ship beside the app:
 
-`aviary-library` is the planned sibling — see [`ROADMAP.md`](ROADMAP.md) P4.
+- `aviary-media` serves bounded, optionally collection-scoped media retrieval.
+- `aviary-library` serves `search_library`, `get_skill`, `get_prompt`,
+  `get_agent`, and `list_bundles` from fresh read-only data.
+- `aviary-launch` claims a private, expiring Terminal descriptor once and then
+  starts the real CLI with typed OS arguments.
+
+The two MCP servers share a bounded JSON-RPC lifecycle and open Aviary's SQLite
+files read-only. Their registration descriptors derive verified sibling paths
+from the running app, so the UI never assumes `/Applications` or `PATH`.
+Terminal handoffs contain no prompt or secrets in shell text, reject symlinks
+and unsafe ownership/modes, and scrub failed or expired payloads.
 
 ---
 
@@ -193,11 +251,12 @@ Requirements, not aspirations:
 
 - No file I/O, parsing or hashing on the UI thread. Ever.
 - Scans are cached; a cold launch paints real content, not a spinner.
+- Subprocess output, JSON-RPC frames, identifiers, diagnostics and persisted
+  event payloads all have explicit bounds.
 - Live `backdrop-filter` only on small transient surfaces — card and hero
   "glass" is a pre-rendered gradient texture plus a 1 px inner stroke. This is
   precisely why the asset pack exists: to buy the look without paying runtime
   blur on every scroll frame.
-- Cold start < 400 ms, idle RSS < 120 MB.
 
 ---
 
@@ -226,4 +285,8 @@ The trade-off is that a bare CI runner has no `~/.claude`. Those tests
 **skip with a printed reason** rather than failing, because an empty result on a
 machine with no runners installed is correct, not broken.
 
-28 tests, green in CI on every push.
+The release floor is `bunx tsc --noEmit`, `cargo test --lib`, and
+`cargo build --bins`, followed by driving the affected flow in the real app.
+Release CI additionally verifies each universal helper, every signature, the
+updater archive, the notarized DMG and a quarantined installed copy before it
+publishes anything.

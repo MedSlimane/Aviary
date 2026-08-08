@@ -15,14 +15,27 @@ use super::*;
 
 pub const RUNNER: Runner = Runner::ClaudeCode;
 
+pub fn root_at(home: &Path) -> PathBuf {
+    home.join(".claude")
+}
+
 pub fn root() -> Option<PathBuf> {
-    home().map(|h| h.join(".claude"))
+    home().map(|h| root_at(&h))
 }
 
 pub fn scan_user() -> Vec<Entry> {
     let Some(root) = root() else {
         return Vec::new();
     };
+    scan_user_at(&root)
+}
+
+/// Scans a Claude user root supplied by the caller.
+///
+/// Keeping the path injectable lets the live index exercise real symlinks and
+/// filesystem notifications in a temporary home without redirecting the
+/// process-wide home directory used by the rest of the app.
+pub fn scan_user_at(root: &Path) -> Vec<Entry> {
     let mut out = Vec::new();
 
     out.extend(scan_skill_dir(
@@ -61,6 +74,46 @@ pub fn scan_user() -> Vec<Entry> {
 
     out.extend(scan_plugins(&root.join("plugins")));
     out
+}
+
+/// Directories whose descendants can change the Claude library index.
+///
+/// The watcher observes these narrow trees instead of all of `~/.claude`;
+/// session transcripts and command history are both much noisier and have no
+/// bearing on the library.
+pub fn user_recursive_roots(root: &Path) -> Vec<PathBuf> {
+    ["skills", "agents", "commands", "plugins"]
+        .into_iter()
+        .map(|name| root.join(name))
+        .collect()
+}
+
+pub fn project_recursive_roots(project: &Path) -> Vec<PathBuf> {
+    let dot = project.join(".claude");
+    ["skills", "agents", "commands"]
+        .into_iter()
+        .map(|name| dot.join(name))
+        .collect()
+}
+
+/// Whether a mutation under the Claude user root can affect `scan_user_at`.
+pub fn affects_user(root: &Path, path: &Path) -> bool {
+    path == root
+        || path == root.join("CLAUDE.md")
+        || user_recursive_roots(root)
+            .into_iter()
+            .any(|candidate| path.starts_with(candidate))
+}
+
+/// Whether a mutation in a registered project can affect `scan_project`.
+pub fn affects_project(project: &Path, path: &Path) -> bool {
+    path == project
+        || path == project.join(".claude")
+        || path == project.join("CLAUDE.md")
+        || path == project.join(".claude").join("CLAUDE.local.md")
+        || project_recursive_roots(project)
+            .into_iter()
+            .any(|candidate| path.starts_with(candidate))
 }
 
 /// Plugin skills are versioned by content hash, so the same skill appears many

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { homeDir } from "@tauri-apps/api/path";
-import { scanLibrary, type LibrarySnapshot } from "@/lib/api";
+import { collectDiagnostics } from "@/lib/api";
 import { useBoolPreference } from "@/lib/use-preference";
+import { useLibrary } from "@/lib/use-library";
 import * as motionReact from "motion/react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,8 @@ import { notify } from "@/lib/notify";
 import { THEMES, useTheme, type ThemeName } from "@/lib/theme";
 import { PageHeader, SectionLabel } from "@/components/screen-parts";
 import { cn } from "@/lib/utils";
+import { copyDiagnostics } from "@/lib/diagnostics";
+import { useUpdater } from "@/lib/use-updater";
 
 const { motion } = motionReact;
 
@@ -61,6 +64,8 @@ function Row({
 
 export function SettingsView() {
   const { theme, setTheme } = useTheme();
+  const updater = useUpdater();
+  const { data: library, refresh: refreshLibrary } = useLibrary();
 
   // Persisted in SQLite, so a toggle survives relaunch. The previous version
   // held these in `useState` alone and silently reset on every window close.
@@ -69,14 +74,9 @@ export function SettingsView() {
     "chat.allowRiskyPermissionModes",
   );
 
-  const [library, setLibrary] = useState<LibrarySnapshot | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
-
-  useEffect(() => {
-    scanLibrary()
-      .then(setLibrary)
-      .catch(() => setLibrary(null));
-  }, []);
+  const [copyingDiagnostics, setCopyingDiagnostics] = useState(false);
+  const [diagnosticsText, setDiagnosticsText] = useState<string | null>(null);
 
   // `index.css` already honours the OS setting; this lets the app opt in
   // independently of it.
@@ -87,8 +87,7 @@ export function SettingsView() {
   const rebuild = async () => {
     setRebuilding(true);
     try {
-      const fresh = await scanLibrary(true);
-      setLibrary(fresh);
+      const fresh = await refreshLibrary();
       notify("Index rebuilt", {
         description: `${fresh.entries.length} entries in ${fresh.scannedMs}ms.`,
       });
@@ -99,11 +98,28 @@ export function SettingsView() {
     }
   };
 
+  const copyLocalDiagnostics = async () => {
+    setCopyingDiagnostics(true);
+    setDiagnosticsText(null);
+    const result = await copyDiagnostics();
+    setCopyingDiagnostics(false);
+    if (result.copied) {
+      notify("Diagnostics copied", {
+        description: "Nothing was uploaded. Review the report before sharing it.",
+      });
+    } else {
+      setDiagnosticsText(result.text);
+      notify("Clipboard unavailable", {
+        description: "Select and copy the report shown below.",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[18px] p-[26px]">
       <PageHeader
         title="Settings"
-        subtitle="Local-first — nothing here leaves your machine"
+        subtitle="Local-first — no telemetry, and diagnostics stay on your machine"
       />
 
       <Card title="APPEARANCE">
@@ -202,7 +218,7 @@ export function SettingsView() {
       <Card title="PRIVACY">
         <Row
           label="Telemetry"
-          hint="There is none. Aviary makes no network requests of its own — only the runners you launch talk to the outside world."
+          hint="There is none. Update checks contact the public GitHub Releases feed; diagnostics and everything you manage stay local unless you copy or launch them."
           control={
             <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground">
               none
@@ -227,6 +243,109 @@ export function SettingsView() {
             Reveal data folder
           </Button>
         </div>
+      </Card>
+
+      <Card title="UPDATES">
+        <Row
+          label={
+            updater.currentVersion
+              ? `Aviary ${updater.currentVersion}`
+              : "Aviary version"
+          }
+          hint={
+            updater.available
+              ? updater.phase === "relaunch-required" || updater.phase === "relaunching"
+                ? `Version ${updater.available.version} is installed and waiting for Aviary to relaunch.`
+                : `Version ${updater.available.version} is ready to install.`
+              : updater.phase === "checking"
+                ? "Checking the signed alpha release feed…"
+                : updater.phase === "disabled"
+                  ? "Automatic checks are disabled in development builds."
+                  : updater.error
+                    ? `Last check failed: ${updater.error}`
+                    : "Checks the signed alpha release feed on launch."
+          }
+          control={
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={
+                updater.phase === "checking" ||
+                updater.phase === "installing" ||
+                updater.phase === "relaunching" ||
+                updater.phase === "disabled"
+              }
+              onClick={() => {
+                if (updater.available) updater.showAvailable();
+                else void updater.checkNow();
+              }}
+            >
+              {updater.phase === "checking"
+                ? "Checking…"
+                : updater.phase === "installing"
+                  ? "Installing…"
+                  : updater.phase === "relaunching"
+                    ? "Relaunching…"
+                  : updater.phase === "disabled"
+                    ? "Development build"
+                    : updater.phase === "relaunch-required"
+                      ? "Relaunch"
+                    : updater.available
+                      ? `Review ${updater.available.version}`
+                      : "Check now"}
+            </Button>
+          }
+        />
+      </Card>
+
+      <Card title="DIAGNOSTICS">
+        <Row
+          label="Local error logs"
+          hint="Normally stored under ~/.aviary/logs. Aviary keeps one active log and four archives, and never uploads them."
+          control={
+            <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted-foreground">
+              local only
+            </span>
+          }
+        />
+        <div className="flex gap-2 pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={copyingDiagnostics}
+            onClick={() => void copyLocalDiagnostics()}
+          >
+            {copyingDiagnostics ? "Preparing…" : "Copy diagnostics"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const { logsDir } = await collectDiagnostics();
+                if (!logsDir) {
+                  notify("File logging is unavailable", {
+                    description: "Aviary is currently logging to process stderr.",
+                  });
+                  return;
+                }
+                await revealItemInDir(`${logsDir}/`);
+              } catch (e) {
+                notify("Could not open the logs", { description: String(e) });
+              }
+            }}
+          >
+            Reveal logs
+          </Button>
+        </div>
+        {diagnosticsText && (
+          <textarea
+            readOnly
+            value={diagnosticsText}
+            onFocus={(event) => event.currentTarget.select()}
+            className="h-[180px] w-full resize-y rounded-lg border border-border bg-inset p-3 font-mono text-[10px] outline-none"
+          />
+        )}
       </Card>
     </div>
   );

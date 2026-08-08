@@ -6,6 +6,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/lib/notify";
+import { claudeMcpRegistrationCommand } from "@/lib/mcp-registration";
 import { PageHeader, SectionLabel } from "@/components/screen-parts";
 import { cn } from "@/lib/utils";
 import {
@@ -13,11 +14,13 @@ import {
   importMedia,
   listCollections,
   listMedia,
+  mediaMcpRegistration,
   removeMedia,
   searchMedia,
   setCollectionMembership,
   type MediaCollection,
   type MediaItem,
+  type McpRegistration,
 } from "@/lib/api";
 
 const { motion, AnimatePresence } = motionReact;
@@ -45,23 +48,34 @@ export function InspirationView() {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<MediaItem | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async () => {
+    const request = ++loadRequestRef.current;
+    setItems(null);
+    setLoadError(null);
     try {
       const [media, cols] = await Promise.all([
         query.trim() ? searchMedia(query) : listMedia(collection ?? undefined),
         listCollections(),
       ]);
+      if (request !== loadRequestRef.current) return;
       setItems(media);
       setCollections(cols);
     } catch (e) {
-      setItems([]);
-      notify("Could not load the board", { description: String(e) });
+      if (request !== loadRequestRef.current) return;
+      const message = e instanceof Error ? e.message : String(e);
+      setLoadError(message);
+      notify("Could not load the board", { description: message });
     }
   }, [collection, query]);
 
   useEffect(() => {
     void load();
+    return () => {
+      loadRequestRef.current += 1;
+    };
   }, [load]);
 
   const runImport = useCallback(
@@ -153,7 +167,13 @@ export function InspirationView() {
       <PageHeader
         title="Inspiration"
         subtitle={
-          total === 1 ? "1 item" : `${total} items · ${collections.length} collections`
+          loadError
+            ? "Could not load the board"
+            : items === null
+              ? "Loading board…"
+              : total === 1
+                ? `1 item · ${collections.length} collections`
+                : `${total} items · ${collections.length} collections`
         }
         action={
           <div className="flex items-center gap-2">
@@ -180,9 +200,24 @@ export function InspirationView() {
         }}
       />
 
-      <McpCallout />
+      <McpCallout collectionId={collection} />
 
-      {items === null ? (
+      {loadError ? (
+        <div className="rounded-[12px] border border-destructive/30 bg-destructive/5 px-4 py-4">
+          <p className="text-xs font-medium">The board could not be loaded.</p>
+          <p className="mt-1 break-words text-[11px] leading-relaxed text-muted-foreground">
+            {loadError}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3 rounded-full"
+            onClick={() => void load()}
+          >
+            Try again
+          </Button>
+        </div>
+      ) : items === null ? (
         <div className="flex gap-3">
           {Array.from({ length: COLUMNS }).map((_, i) => (
             <div key={i} className="flex flex-1 flex-col gap-3">
@@ -352,15 +387,30 @@ function Chip({
   );
 }
 
-/**
- * The server ships inside the app bundle rather than on `PATH`, so the command
- * has to name the real location — a bare `aviary-media` does not resolve.
- */
-const MCP_BINARY = "/Applications/aviary.app/Contents/MacOS/aviary-media";
-const MCP_COMMAND = `claude mcp add aviary-media -- ${MCP_BINARY}`;
-
-function McpCallout() {
+function McpCallout({ collectionId }: { collectionId: number | null }) {
   const [copied, setCopied] = useState(false);
+  const [registration, setRegistration] = useState<McpRegistration | null>(null);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    setRegistration(null);
+    setRegistrationError(null);
+    void mediaMcpRegistration(collectionId ?? undefined)
+      .then((next) => {
+        if (live) setRegistration(next);
+      })
+      .catch((reason) => {
+        if (live) setRegistrationError(String(reason));
+      });
+    return () => {
+      live = false;
+    };
+  }, [collectionId]);
+
+  const command = registration
+    ? claudeMcpRegistrationCommand(registration)
+    : null;
 
   return (
     <motion.div
@@ -373,17 +423,28 @@ function McpCallout() {
           Your agents can search this board
         </p>
         <p className="truncate font-mono text-[11px] text-tertiary">
-          {MCP_COMMAND}
+          {command ??
+            (registrationError
+              ? "Bundled MCP server unavailable"
+              : "Locating bundled MCP server…")}
         </p>
       </div>
       <Button
         size="sm"
         variant="outline"
         className="shrink-0"
+        disabled={!command}
         onClick={async () => {
-          await navigator.clipboard.writeText(MCP_COMMAND);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1600);
+          if (!command) return;
+          try {
+            await navigator.clipboard.writeText(command);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1600);
+          } catch (reason) {
+            notify("Could not copy MCP registration", {
+              description: String(reason),
+            });
+          }
         }}
       >
         {copied ? "Copied" : "Copy"}

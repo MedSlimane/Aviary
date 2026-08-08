@@ -15,12 +15,11 @@ import {
 } from "@/components/screen-parts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/lib/notify";
+import { useLibrary } from "@/lib/use-library";
 import {
   listMedia,
-  scanLibrary,
   scanMcp,
   type Entry,
-  type LibrarySnapshot,
   type McpSnapshot,
 } from "@/lib/api";
 
@@ -42,15 +41,13 @@ function ago(unixSeconds: number) {
 }
 
 export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
-  const [library, setLibrary] = useState<LibrarySnapshot | null>(null);
+  const { data: library, loading: libraryLoading } = useLibrary();
   const [mcp, setMcp] = useState<McpSnapshot | null>(null);
   const [mediaCount, setMediaCount] = useState<number | null>(null);
 
   useEffect(() => {
-    // Cached scans, so this paints immediately on a cold launch.
-    Promise.all([scanLibrary(), scanMcp(), listMedia()])
-      .then(([lib, servers, media]) => {
-        setLibrary(lib);
+    Promise.all([scanMcp(), listMedia()])
+      .then(([servers, media]) => {
         setMcp(servers);
         setMediaCount(media.length);
       })
@@ -58,14 +55,19 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
   }, []);
 
   const stats = useMemo(() => {
-    const entries = library?.entries ?? [];
-    const skills = entries.filter((e) => e.kind === "skill").length;
-    const enabled = (mcp?.servers ?? []).filter((s) => s.enabled).length;
+    const skills = library
+      ? library.entries.filter((entry) => entry.kind === "skill").length
+      : null;
+    const enabled = mcp
+      ? mcp.declarations.filter(
+          (declaration) => declaration.state === "enabled",
+        ).length
+      : null;
     return [
       { label: "Skills", value: skills, icon: SparklesIcon, route: "library" as RouteId },
-      { label: "MCP servers", value: enabled, icon: ServerStack01Icon, route: "mcp" as RouteId },
-      { label: "Projects", value: library?.projects.length ?? 0, icon: FolderLibraryIcon, route: "projects" as RouteId },
-      { label: "References", value: mediaCount ?? 0, icon: Image01Icon, route: "inspiration" as RouteId },
+      { label: "MCP declarations", value: enabled, icon: ServerStack01Icon, route: "mcp" as RouteId },
+      { label: "Projects", value: library?.projects.length ?? null, icon: FolderLibraryIcon, route: "projects" as RouteId },
+      { label: "References", value: mediaCount, icon: Image01Icon, route: "inspiration" as RouteId },
     ];
   }, [library, mcp, mediaCount]);
 
@@ -90,11 +92,13 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
       });
     }
 
-    const disabled = (mcp?.servers ?? []).filter((s) => !s.enabled);
+    const disabled = (mcp?.declarations ?? []).filter(
+      (declaration) => declaration.state === "disabled",
+    );
     if (disabled.length > 0) {
       rows.push({
         status: "warn",
-        text: `${disabled.length} MCP server${disabled.length === 1 ? "" : "s"} disabled`,
+        text: `${disabled.length} MCP declaration${disabled.length === 1 ? "" : "s"} disabled`,
         meta: "MCP",
       });
     }
@@ -109,7 +113,7 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
     return rows;
   }, [library, mcp]);
 
-  const loading = library === null;
+  const loading = libraryLoading || library === null;
 
   return (
     <div className="flex flex-col gap-[22px] p-[26px]">
@@ -139,7 +143,7 @@ export function HomeView({ onNavigate }: { onNavigate: (r: RouteId) => void }) {
               className="text-tertiary"
             />
             <p className="mt-3 font-mono text-[24px] font-semibold tabular-nums">
-              {loading ? "—" : s.value}
+              {s.value === null ? "—" : s.value}
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">{s.label}</p>
           </StaggerRow>

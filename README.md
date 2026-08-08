@@ -65,7 +65,8 @@ heuristic.
 The answer to *"why did the agent do that?"* is usually "something you couldn't
 see was in its context." This is the screen that shows it: every instruction,
 skill and MCP tool definition that loads, in resolution order, with its real
-token cost against the window.
+token cost when knowable and an explicit unknown or incomplete state otherwise.
+MCP schema costs appear only after a user-approved live health check.
 
 ![Context](docs/images/context.png)
 
@@ -73,10 +74,12 @@ token cost against the window.
 
 ## Chat that runs the real thing
 
-Agentic turns are driven by the runner's own CLI — `claude -p --output-format
-stream-json`, `codex exec --json` — so tools, MCP, skills, permissions and
-session resume all come for free. Edit a skill in Aviary and it applies on the
-very next turn, because it is the same file.
+Agentic turns are driven by the installed runner's own machine-readable CLI
+protocol, so tools, skills, permissions and real session resume stay with the
+runner. Sessions and normalized events persist locally, permission requests are
+answered in the transcript, and prompts travel over stdin rather than command
+arguments. Edit a skill in Aviary and it applies on the next turn because it is
+the same file.
 
 ![Chat](docs/images/chat.png)
 
@@ -84,7 +87,8 @@ very next turn, because it is the same file.
 
 ## Everything is one keystroke away
 
-`⌘K` searches the whole library, every context bundle, and every action.
+`⌘K` searches the live library and opens the app's real navigation and theme
+actions.
 
 ![Command palette](docs/images/palette.png)
 
@@ -104,7 +108,10 @@ Bundle "Frontend Review"
   └ media       collection: "UI references / dark"
 ```
 
-Attach one to a chat, or launch it into a terminal session.
+The editor stores real opaque targets and preserves missing ones without
+rebinding by name. A compatible saved revision can attach to chat or launch the
+real CLI in Terminal. If a runner has no proven way to represent a component,
+Aviary blocks execution with the exact reason instead of pretending it applied.
 
 <br />
 
@@ -132,31 +139,37 @@ src-tauri/src/
 │  └─ codex.rs
 ├─ library.rs      index assembly, registered projects
 ├─ context.rs      resolves the instruction stack for (runner, cwd)
-├─ mcp.rs          MCP server discovery across user/plugin/project configs
+├─ mcp.rs          static inventory and explicit bounded health checks
+├─ mcp_protocol.rs shared bounded MCP JSON-RPC lifecycle
 ├─ media.rs        content-addressed media store, thumbnails, auto-tagging
-├─ mcp_media.rs    JSON-RPC for the aviary-media MCP server
-├─ bin/            aviary_media.rs — the MCP server binary (stdio)
-├─ runner.rs       CLI supervisor, NDJSON → Tauri channel
+├─ mcp_media.rs    read-only aviary-media tools
+├─ mcp_library.rs  read-only aviary-library tools
+├─ launch.rs       private one-use Terminal handoff
+├─ bin/            media, library and launch helper entry points
+├─ runner.rs + runner/  CLI supervisor and protocol adapters
 ├─ models.rs       model + effort discovery, per runner
-├─ store.rs        SQLite — data.db (durable) and cache.db (disposable)
+├─ store.rs + store/    SQLite, durable sessions and bundles
+├─ watcher.rs      debounced native filesystem refresh
+├─ diagnostics.rs  bounded local logs and reports
 ├─ writer.rs       atomic writes, snapshots, conflict detection
 └─ tokens.rs       tiktoken (o200k_base)
 
 src/
-├─ views/          home · chat · library · projects · mcp · context · inspiration · settings
+├─ views/          home · chat · library · projects · bundles · mcp · context · inspiration · settings
 ├─ components/     rail, title bar, shared screen parts
 ├─ lib/            api (the only IPC boundary), theme, motion, notify
 └─ index.css       design tokens → shadcn token bridge
 ```
 
-**Files are the source of truth.** The index is a disposable cache — delete it
-and nothing is lost but a rescan. Writes are atomic, snapshotted to
-`~/.aviary/history` beforehand, and refused if the file changed underneath you.
+**Runner files are the configuration source of truth.** `cache.db` is
+disposable; `data.db` is durable because it owns projects, media, preferences,
+chat history and Bundles. Runner-config writes are atomic, snapshotted to
+`~/.aviary/history` first, and refused if the file changed underneath you.
 
-**Performance is a contract, not an aspiration.** No file I/O or parsing on the
-UI thread. Every list virtualised. Live `backdrop-filter` only on small,
-transient surfaces — card "glass" is a pre-rendered texture. Cold start under
-400 ms, idle under 120 MB.
+**Performance is a contract, not an aspiration.** Filesystem walks, tokenising,
+hashing and subprocess work stay off the UI thread. Frames, subprocess output,
+diagnostics and stored events are bounded. Live `backdrop-filter` is limited to
+small transient surfaces; card "glass" is a pre-rendered texture.
 
 <br />
 
@@ -189,7 +202,8 @@ bun run tauri dev
 
 ```bash
 bunx tsc --noEmit                  # typecheck the frontend
-cd src-tauri && cargo test --lib   # 28 tests, against your real machine
+cd src-tauri && cargo test --lib   # includes real-machine integration coverage
+cargo build --bins                 # app plus all bundled helpers
 ./scripts/make-dmg.sh              # universal DMG — see docs/RELEASING.md
 ```
 
@@ -197,7 +211,11 @@ cd src-tauri && cargo test --lib   # 28 tests, against your real machine
 
 ## Status
 
-**[`v0.1.0-alpha.1`](https://github.com/MedSlimane/Aviary/releases/tag/v0.1.0-alpha.1)** — universal macOS DMG. Ad-hoc signed, not notarised: right-click → Open on first launch.
+**[`v0.1.0-alpha.1`](https://github.com/MedSlimane/Aviary/releases/tag/v0.1.0-alpha.1)**
+is the latest published build. It is ad-hoc signed and not notarised. The source
+tree contains later P1–P4 work, but the signed updater path is not complete until
+a real public old-version-to-new-version release passes the checks in
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
 Every surface below reads your real machine. **There is no mock data in the app.**
 
@@ -205,16 +223,14 @@ Every surface below reads your real machine. **There is no mock data in the app.
 |---|---|
 | Library — discovery, dedupe, editor with write safety | ✅ |
 | Projects — auto-discovery, opt-in tracking | ✅ |
-| MCP servers — discovery across user, plugin and project configs | ✅ |
-| Chat — drives the real CLI, model and effort discovered | ✅ |
-| Context — resolved instruction stack with real token costs | ✅ |
+| MCP servers — sanitized inventory, explicit health, safe toggles | ✅ source |
+| Chat — durable resume, permissions, structured tools | ✅ source |
+| Context — complete/partial measurements with honest unknowns | ✅ source |
 | Inspiration — content-addressed media board, auto-tagging | ✅ |
-| `aviary-media` MCP server | ✅ |
-| SQLite store + scan cache (101 ms → 1 ms) | ✅ |
-| Auto-updater · notarisation · file watching | ⏳ P1 |
-| Chat session persistence · permission approval UI | ⏳ P2 |
-| MCP health checks · tool-definition token costs | ⏳ P3 |
-| Context Bundles · `aviary-library` MCP server | ⏳ P4 |
+| `aviary-media` and `aviary-library` MCP servers | ✅ source |
+| Context Bundles and private Terminal handoff | ✅ source, fail-closed compatibility |
+| File watching and local diagnostics | ✅ source |
+| Signed updater and notarised public release | ⏳ external release proof |
 
 The full plan is in **[`docs/ROADMAP.md`](docs/ROADMAP.md)**.
 
@@ -232,8 +248,8 @@ docs/          architecture, roadmap, release runbook, design spec
 | Document | |
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How it is put together, and why |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | What ships next, and what is deliberately not built |
-| [`docs/RELEASING.md`](docs/RELEASING.md) | Build runbook — two non-obvious traps |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scheduled implementation status and deliberately unscheduled work |
+| [`docs/RELEASING.md`](docs/RELEASING.md) | Fail-closed signed release runbook |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, and what gets a change rejected |
 | [`CLAUDE.md`](CLAUDE.md) | Rules for agents working in this repo (`AGENTS.md` symlinks here) |
 | [design spec](docs/superpowers/specs/2026-07-28-aviary-design.md) | Original rationale, risks and phasing |

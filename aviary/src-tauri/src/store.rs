@@ -3,8 +3,8 @@
 //! Split across **two** databases, because they have opposite guarantees:
 //!
 //! * `~/.aviary/data.db` — the user's own data: preferences, registered
-//!   projects, media, collections, tags. Nothing here can be recomputed. It is
-//!   backed up, migrated, and never dropped.
+//!   projects, media, collections, tags and chat sessions. Nothing here can be
+//!   recomputed. It is backed up, migrated, and never dropped.
 //! * `~/.aviary/cache.db` — everything derivable from disk: library scans, MCP
 //!   snapshots, token counts, thumbnail paths. The design spec's rule is that
 //!   *deleting the database must cost nothing but a re-index*, which only holds
@@ -17,10 +17,13 @@
 //! the constant and appending a step is the only supported way to evolve.
 
 use rusqlite::{Connection, OpenFlags};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-const DATA_VERSION: i64 = 1;
+pub mod bundles;
+pub mod sessions;
+
+pub const DATA_VERSION: i64 = 3;
 const CACHE_VERSION: i64 = 1;
 
 pub fn dir() -> Option<PathBuf> {
@@ -37,11 +40,50 @@ pub fn thumb_dir() -> Option<PathBuf> {
     dir().map(|d| d.join("cache").join("thumbs"))
 }
 
+/// `~/.aviary/logs` — bounded local diagnostics, never uploaded.
+pub fn logs_dir() -> Option<PathBuf> {
+    dir().map(|d| d.join("logs"))
+}
+
+/// App-owned directories contain prompts, metadata and diagnostics. Tightening
+/// an existing directory is intentional: older Aviary builds inherited a
+/// permissive umask that let other local accounts traverse `~/.aviary`.
+pub fn ensure_private_dir(path: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn ensure_private_file(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn sqlite_sidecar(path: &Path, suffix: &str) -> PathBuf {
+    let mut sidecar = path.as_os_str().to_os_string();
+    sidecar.push(suffix);
+    PathBuf::from(sidecar)
+}
+
 fn open(name: &str) -> Result<Connection, String> {
     let dir = dir().ok_or("no home directory")?;
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    ensure_private_dir(&dir)?;
+    let database = dir.join(name);
     let conn = Connection::open_with_flags(
-        dir.join(name),
+        &database,
         OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
     )
     .map_err(|e| e.to_string())?;
@@ -52,12 +94,15 @@ fn open(name: &str) -> Result<Connection, String> {
         .map_err(|e| e.to_string())?;
     conn.pragma_update(None, "foreign_keys", "ON")
         .map_err(|e| e.to_string())?;
+    ensure_private_file(&database)?;
+    ensure_private_file(&sqlite_sidecar(&database, "-wal"))?;
+    ensure_private_file(&sqlite_sidecar(&database, "-shm"))?;
     Ok(conn)
 }
 
-fn version(conn: &Connection) -> i64 {
+fn version(conn: &Connection) -> Result<i64, String> {
     conn.query_row("PRAGMA user_version", [], |r| r.get(0))
-        .unwrap_or(0)
+        .map_err(|e| e.to_string())
 }
 
 fn set_version(conn: &Connection, v: i64) -> Result<(), String> {
@@ -67,13 +112,31 @@ fn set_version(conn: &Connection, v: i64) -> Result<(), String> {
 
 // ---------------------------------------------------------------- data.db ---
 
-fn migrate_data(conn: &Connection) -> Result<(), String> {
-    if version(conn) >= DATA_VERSION {
-        return Ok(());
+fn migrate_data(conn: &mut Connection) -> Result<(), String> {
+    let current = version(conn)?;
+    if current > DATA_VERSION {
+        return Err(format!(
+            "data.db schema version {current} is newer than this Aviary build supports ({DATA_VERSION})"
+        ));
     }
 
-    conn.execute_batch(
-        r#"
+    for target in (current + 1)..=DATA_VERSION {
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        let schema = match target {
+            1 => DATA_V1_SCHEMA,
+            2 => DATA_V2_SCHEMA,
+            3 => DATA_V3_SCHEMA,
+            _ => unreachable!("every data.db migration must be explicit"),
+        };
+        tx.execute_batch(schema).map_err(|e| e.to_string())?;
+        tx.pragma_update(None, "user_version", target)
+            .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+const DATA_V1_SCHEMA: &str = r#"
         -- Typed by convention: `value` is JSON so a preference can grow from a
         -- bool into an object without a migration.
         CREATE TABLE IF NOT EXISTS preference (
@@ -175,17 +238,173 @@ fn migrate_data(conn: &Connection) -> Result<(), String> {
                    origin = COALESCE(new.origin,'')
              WHERE hash = new.hash;
         END;
-        "#,
-    )
-    .map_err(|e| e.to_string())?;
+"#;
 
-    set_version(conn, DATA_VERSION)
-}
+const DATA_V2_SCHEMA: &str = r#"
+        -- Aviary owns the local transcript, while `runner_session_id` remains
+        -- the runner's identity used for resume. It is nullable because Codex
+        -- assigns it only after the process has started.
+        CREATE TABLE chat_session (
+            id                TEXT PRIMARY KEY,
+            runner            TEXT NOT NULL
+                CHECK (runner IN ('claude-code', 'codex')),
+            runner_session_id TEXT,
+            cwd               TEXT NOT NULL,
+            title             TEXT NOT NULL,
+            created_at        INTEGER NOT NULL,
+            updated_at        INTEGER NOT NULL,
+            UNIQUE (runner, runner_session_id)
+        );
+        CREATE INDEX chat_session_recent_idx
+            ON chat_session(updated_at DESC, id);
+
+        -- Execution settings live on the turn because model, effort and the
+        -- safe permission choice may legitimately change between resumes.
+        CREATE TABLE chat_turn (
+            id                TEXT PRIMARY KEY,
+            session_id        TEXT NOT NULL
+                REFERENCES chat_session(id) ON DELETE CASCADE,
+            ordinal           INTEGER NOT NULL CHECK (ordinal > 0),
+            prompt            TEXT NOT NULL,
+            requested_model   TEXT,
+            requested_effort  TEXT,
+            permission_mode   TEXT NOT NULL,
+            status            TEXT NOT NULL
+                CHECK (status IN
+                    ('queued', 'running', 'completed', 'failed', 'interrupted')),
+            failure_kind      TEXT
+                CHECK (failure_kind IS NULL OR failure_kind IN
+                    ('spawn', 'protocol', 'runner-exit', 'input', 'internal')),
+            created_at        INTEGER NOT NULL,
+            started_at        INTEGER,
+            finished_at       INTEGER,
+            duration_ms       INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0),
+            UNIQUE (session_id, ordinal)
+        );
+        CREATE INDEX chat_turn_session_idx
+            ON chat_turn(session_id, ordinal);
+        CREATE UNIQUE INDEX chat_turn_one_active_idx
+            ON chat_turn(session_id)
+            WHERE status IN ('queued', 'running');
+
+        -- Only versioned, normalised events are durable. There is deliberately
+        -- no raw-runner event shape: unknown JSON may contain prompts, tool
+        -- arguments, environment-adjacent data or file contents.
+        CREATE TABLE chat_event (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            turn_id        TEXT NOT NULL
+                REFERENCES chat_turn(id) ON DELETE CASCADE,
+            sequence       INTEGER NOT NULL CHECK (sequence > 0),
+            schema_version INTEGER NOT NULL CHECK (schema_version = 1),
+            kind           TEXT NOT NULL,
+            payload        TEXT NOT NULL CHECK (json_valid(payload)),
+            created_at     INTEGER NOT NULL,
+            UNIQUE (turn_id, sequence)
+        );
+        CREATE INDEX chat_event_turn_idx
+            ON chat_event(turn_id, sequence);
+"#;
+
+const DATA_V3_SCHEMA: &str = r#"
+        -- A bundle records durable intent, not a cached resolution. Targets
+        -- deliberately have no foreign keys: removing a file, project, MCP
+        -- declaration or collection must leave an honest missing member.
+        CREATE TABLE bundle (
+            id          TEXT PRIMARY KEY
+                CHECK (length(id) = 36),
+            name        TEXT NOT NULL
+                CHECK (length(trim(name)) BETWEEN 1 AND 120),
+            description TEXT NOT NULL DEFAULT ''
+                CHECK (length(description) <= 4000),
+            runner      TEXT NOT NULL
+                CHECK (runner IN ('claude-code', 'codex')),
+            model_id    TEXT
+                CHECK (model_id IS NULL OR
+                       length(trim(model_id)) BETWEEN 1 AND 256),
+            memory_mode TEXT NOT NULL DEFAULT 'inherit'
+                CHECK (memory_mode IN ('inherit', 'supplement')),
+            revision    INTEGER NOT NULL DEFAULT 1
+                CHECK (revision >= 1),
+            created_at  INTEGER NOT NULL CHECK (created_at >= 0),
+            updated_at  INTEGER NOT NULL
+                CHECK (updated_at >= created_at)
+        );
+        CREATE INDEX bundle_recent_idx ON bundle(updated_at DESC, id);
+
+        CREATE TABLE bundle_member (
+            id              TEXT PRIMARY KEY
+                CHECK (length(id) = 36),
+            bundle_id       TEXT NOT NULL
+                REFERENCES bundle(id) ON DELETE CASCADE,
+            ordinal         INTEGER NOT NULL CHECK (ordinal >= 0),
+            kind            TEXT NOT NULL CHECK (kind IN
+                ('project', 'skill', 'prompt', 'agent', 'memory', 'mcp',
+                 'media-collection')),
+            role            TEXT NOT NULL,
+            target_text     TEXT,
+            target_integer  INTEGER,
+            snapshot_label  TEXT NOT NULL
+                CHECK (length(trim(snapshot_label)) BETWEEN 1 AND 256),
+            created_at      INTEGER NOT NULL CHECK (created_at >= 0),
+            UNIQUE (bundle_id, ordinal),
+            CHECK (
+                (kind = 'media-collection' AND target_text IS NULL AND
+                 target_integer > 0) OR
+                (kind <> 'media-collection' AND target_text IS NOT NULL AND
+                 length(trim(target_text)) BETWEEN 1 AND 16384 AND
+                 target_integer IS NULL)
+            ),
+            CHECK (
+                (kind = 'project' AND role = 'working-directory') OR
+                (kind = 'skill' AND role IN
+                    ('available', 'invoke-first-turn')) OR
+                (kind = 'prompt' AND role = 'prefill') OR
+                (kind = 'agent' AND role IN ('available', 'primary')) OR
+                (kind = 'memory' AND role = 'supplement') OR
+                (kind = 'mcp' AND role = 'enabled') OR
+                (kind = 'media-collection' AND role = 'retrieval')
+            )
+        );
+        CREATE UNIQUE INDEX bundle_member_target_unique
+            ON bundle_member(
+                bundle_id,
+                kind,
+                coalesce(target_text, ''),
+                coalesce(target_integer, -1)
+            );
+        CREATE UNIQUE INDEX bundle_one_project_idx
+            ON bundle_member(bundle_id) WHERE kind = 'project';
+        CREATE UNIQUE INDEX bundle_one_prompt_idx
+            ON bundle_member(bundle_id) WHERE kind = 'prompt';
+        CREATE UNIQUE INDEX bundle_one_primary_agent_idx
+            ON bundle_member(bundle_id)
+            WHERE kind = 'agent' AND role = 'primary';
+
+        -- The source bundle has no foreign key because a chat must retain the
+        -- exact, secret-free attachment plan after its bundle is edited or
+        -- deleted. The session itself owns the snapshot lifecycle.
+        CREATE TABLE chat_session_bundle (
+            session_id             TEXT PRIMARY KEY
+                REFERENCES chat_session(id) ON DELETE CASCADE,
+            source_bundle_id       TEXT NOT NULL
+                CHECK (length(source_bundle_id) = 36),
+            source_bundle_revision INTEGER NOT NULL
+                CHECK (source_bundle_revision >= 1),
+            source_bundle_name     TEXT NOT NULL
+                CHECK (length(trim(source_bundle_name)) BETWEEN 1 AND 120),
+            snapshot_schema_version INTEGER NOT NULL
+                CHECK (snapshot_schema_version = 1),
+            snapshot_json          TEXT NOT NULL
+                CHECK (json_valid(snapshot_json) AND
+                       length(CAST(snapshot_json AS BLOB)) <= 262144),
+            attached_at            INTEGER NOT NULL CHECK (attached_at >= 0)
+        );
+"#;
 
 // --------------------------------------------------------------- cache.db ---
 
 fn migrate_cache(conn: &Connection) -> Result<(), String> {
-    if version(conn) >= CACHE_VERSION {
+    if version(conn)? >= CACHE_VERSION {
         return Ok(());
     }
 
@@ -238,8 +457,8 @@ fn migrate_cache(conn: &Connection) -> Result<(), String> {
 fn data_conn() -> &'static Mutex<Connection> {
     static DATA: OnceLock<Mutex<Connection>> = OnceLock::new();
     DATA.get_or_init(|| {
-        let conn = open("data.db").expect("data.db must be openable");
-        migrate_data(&conn).expect("data.db migration must succeed");
+        let mut conn = open("data.db").expect("data.db must be openable");
+        migrate_data(&mut conn).expect("data.db migration must succeed");
         Mutex::new(conn)
     })
 }
@@ -272,11 +491,9 @@ pub fn now() -> i64 {
 
 pub fn get_pref(key: &str) -> Option<String> {
     data()
-        .query_row(
-            "SELECT value FROM preference WHERE key = ?1",
-            [key],
-            |r| r.get::<_, String>(0),
-        )
+        .query_row("SELECT value FROM preference WHERE key = ?1", [key], |r| {
+            r.get::<_, String>(0)
+        })
         .ok()
 }
 
@@ -418,6 +635,61 @@ pub fn write_scan(kind: &str, payload: &str, took_ms: u64) -> Result<(), String>
         .map_err(|e| e.to_string())
 }
 
+/// Writes several related scan payloads as one visible cache revision.
+///
+/// A targeted library refresh updates one or more provider fragments and the
+/// assembled `library` row. Committing those separately would let a concurrent
+/// cold-start read observe half of the new index.
+pub fn write_scan_batch(
+    rows: &[(String, String, u64)],
+    clear_prefix: Option<&str>,
+) -> Result<(), String> {
+    let mut conn = cache();
+    write_scan_batch_on(&mut conn, rows, clear_prefix)
+}
+
+fn write_scan_batch_on(
+    conn: &mut Connection,
+    rows: &[(String, String, u64)],
+    clear_prefix: Option<&str>,
+) -> Result<(), String> {
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    if let Some(prefix) = clear_prefix {
+        tx.execute(
+            "DELETE FROM scan WHERE substr(kind, 1, length(?1)) = ?1",
+            [prefix],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    let scanned_at = now();
+    for (kind, payload, took_ms) in rows {
+        tx.execute(
+            "INSERT INTO scan(kind, payload, scanned_at, took_ms) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(kind) DO UPDATE SET payload = ?2, scanned_at = ?3, took_ms = ?4",
+            rusqlite::params![kind, payload, scanned_at, *took_ms as i64],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())
+}
+
+pub fn delete_scan(kind: &str) -> Result<(), String> {
+    cache()
+        .execute("DELETE FROM scan WHERE kind = ?1", [kind])
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+pub fn delete_scan_prefix(prefix: &str) -> Result<(), String> {
+    cache()
+        .execute(
+            "DELETE FROM scan WHERE substr(kind, 1, length(?1)) = ?1",
+            [prefix],
+        )
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 /// Token count for a file, memoised on (path, mtime, size).
 pub fn cached_tokens(path: &str) -> usize {
     let Ok(meta) = std::fs::metadata(path) else {
@@ -453,21 +725,231 @@ mod tests {
 
     #[test]
     fn migrations_are_idempotent() {
-        let conn = Connection::open_in_memory().unwrap();
-        migrate_data(&conn).unwrap();
-        migrate_data(&conn).unwrap();
-        assert_eq!(version(&conn), DATA_VERSION);
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrate_data(&mut conn).unwrap();
+        migrate_data(&mut conn).unwrap();
+        assert_eq!(version(&conn).unwrap(), DATA_VERSION);
 
         let cache = Connection::open_in_memory().unwrap();
         migrate_cache(&cache).unwrap();
         migrate_cache(&cache).unwrap();
-        assert_eq!(version(&cache), CACHE_VERSION);
+        assert_eq!(version(&cache).unwrap(), CACHE_VERSION);
+    }
+
+    #[test]
+    fn v3_migration_preserves_every_older_durable_surface() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut conn = Connection::open(dir.path().join("data.db")).unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        conn.execute_batch(DATA_V1_SCHEMA).unwrap();
+        set_version(&conn, 1).unwrap();
+        conn.execute(
+            "INSERT INTO preference(key, value, updated_at) VALUES ('theme', '\"dark\"', 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO project(path, name, added_at) VALUES ('/tmp/real', 'Real', 2)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO media(hash, kind, ext, bytes, title, added_at)
+             VALUES ('keep', 'image', 'png', 4, 'Keep me', 3)",
+            [],
+        )
+        .unwrap();
+
+        migrate_data(&mut conn).unwrap();
+
+        assert_eq!(version(&conn).unwrap(), 3);
+        let preference: String = conn
+            .query_row(
+                "SELECT value FROM preference WHERE key = 'theme'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let project: String = conn
+            .query_row(
+                "SELECT name FROM project WHERE path = '/tmp/real'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let media: String = conn
+            .query_row("SELECT title FROM media WHERE hash = 'keep'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            (preference.as_str(), project.as_str(), media.as_str()),
+            ("\"dark\"", "Real", "Keep me")
+        );
+        for table in [
+            "chat_session",
+            "chat_turn",
+            "chat_event",
+            "bundle",
+            "bundle_member",
+            "chat_session_bundle",
+        ] {
+            let exists: i64 = conn
+                .query_row(
+                    "SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(exists, 1, "{table} must be created by v2");
+        }
+    }
+
+    #[test]
+    fn failed_step_rolls_back_schema_and_user_version() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(DATA_V1_SCHEMA).unwrap();
+        set_version(&conn, 1).unwrap();
+        // The conflict occurs after v2 has created `chat_session`, proving the
+        // whole step rolls back rather than leaving an unversioned half-schema.
+        conn.execute("CREATE TABLE chat_turn(unexpected TEXT)", [])
+            .unwrap();
+
+        assert!(migrate_data(&mut conn).is_err());
+        assert_eq!(version(&conn).unwrap(), 1);
+        let sessions: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_schema
+                  WHERE type = 'table' AND name = 'chat_session'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(sessions, 0);
+    }
+
+    #[test]
+    fn failed_v3_step_preserves_v2_sessions_and_version() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        conn.execute_batch(DATA_V1_SCHEMA).unwrap();
+        conn.execute_batch(DATA_V2_SCHEMA).unwrap();
+        set_version(&conn, 2).unwrap();
+        conn.execute(
+            "INSERT INTO chat_session(
+                id, runner, cwd, title, created_at, updated_at
+             ) VALUES ('session', 'codex', '/tmp/project', 'Keep', 1, 1)",
+            [],
+        )
+        .unwrap();
+        // The collision occurs after v3 creates `bundle`, proving the complete
+        // step and version bump share one transaction.
+        conn.execute("CREATE TABLE bundle_member(unexpected TEXT)", [])
+            .unwrap();
+
+        assert!(migrate_data(&mut conn).is_err());
+        assert_eq!(version(&conn).unwrap(), 2);
+        let title: String = conn
+            .query_row(
+                "SELECT title FROM chat_session WHERE id = 'session'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let bundles: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_schema
+                  WHERE type = 'table' AND name = 'bundle'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(title, "Keep");
+        assert_eq!(bundles, 0);
+    }
+
+    #[test]
+    fn newer_durable_database_is_refused() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        set_version(&conn, DATA_VERSION + 1).unwrap();
+        let error = migrate_data(&mut conn).unwrap_err();
+        assert!(error.contains("newer"));
+        assert_eq!(version(&conn).unwrap(), DATA_VERSION + 1);
+    }
+
+    #[test]
+    fn attachment_snapshot_limit_is_measured_in_bytes() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        migrate_data(&mut conn).unwrap();
+        conn.execute(
+            "INSERT INTO chat_session(
+                id, runner, cwd, title, created_at, updated_at
+             ) VALUES ('session', 'codex', '/tmp', 'Bounded', 1, 1)",
+            [],
+        )
+        .unwrap();
+        // Fewer than 262,144 Unicode scalar values, but more than 262,144
+        // UTF-8 bytes. The persistence and IPC limits are byte limits.
+        let oversized = serde_json::to_string(&"é".repeat(140_000)).unwrap();
+        assert!(oversized.chars().count() < 262_144);
+        assert!(oversized.len() > 262_144);
+        let result = conn.execute(
+            "INSERT INTO chat_session_bundle(
+                session_id, source_bundle_id, source_bundle_revision,
+                source_bundle_name, snapshot_schema_version, snapshot_json,
+                attached_at
+             ) VALUES (
+                'session', '00000000-0000-0000-0000-000000000000', 1,
+                'Bounded', 1, ?1, 1
+             )",
+            [&oversized],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn scan_batch_replaces_scopes_and_aggregate_together() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrate_cache(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO scan(kind, payload, scanned_at, took_ms)
+             VALUES ('library:scope:stale', 'old-part', 0, 0),
+                    ('library', 'old-index', 0, 0)",
+            [],
+        )
+        .unwrap();
+
+        let rows = vec![
+            (
+                "library:scope:codex:user".to_string(),
+                "new-part".to_string(),
+                3,
+            ),
+            ("library".to_string(), "new-index".to_string(), 4),
+        ];
+        write_scan_batch_on(&mut conn, &rows, Some("library:scope:")).unwrap();
+
+        let aggregate: String = conn
+            .query_row("SELECT payload FROM scan WHERE kind = 'library'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        let stale: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM scan WHERE kind = 'library:scope:stale'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(aggregate, "new-index");
+        assert_eq!(stale, 0);
     }
 
     #[test]
     fn media_fts_tracks_the_media_table() {
-        let conn = Connection::open_in_memory().unwrap();
-        migrate_data(&conn).unwrap();
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrate_data(&mut conn).unwrap();
 
         conn.execute(
             "INSERT INTO media(hash, kind, ext, bytes, title, added_at)
@@ -485,7 +967,8 @@ mod tests {
             .unwrap();
         assert_eq!(hits, 1, "insert trigger must populate the index");
 
-        conn.execute("DELETE FROM media WHERE hash = 'abc'", []).unwrap();
+        conn.execute("DELETE FROM media WHERE hash = 'abc'", [])
+            .unwrap();
         let after: i64 = conn
             .query_row("SELECT count(*) FROM media_fts", [], |r| r.get(0))
             .unwrap();
@@ -494,9 +977,9 @@ mod tests {
 
     #[test]
     fn cascades_clean_up_tags_and_membership() {
-        let conn = Connection::open_in_memory().unwrap();
+        let mut conn = Connection::open_in_memory().unwrap();
         conn.pragma_update(None, "foreign_keys", "ON").unwrap();
-        migrate_data(&conn).unwrap();
+        migrate_data(&mut conn).unwrap();
 
         conn.execute(
             "INSERT INTO media(hash, kind, ext, bytes, added_at)
@@ -518,7 +1001,8 @@ mod tests {
         conn.execute("INSERT INTO tag(media_hash, tag) VALUES ('h1', 'teal')", [])
             .unwrap();
 
-        conn.execute("DELETE FROM media WHERE hash = 'h1'", []).unwrap();
+        conn.execute("DELETE FROM media WHERE hash = 'h1'", [])
+            .unwrap();
 
         let tags: i64 = conn
             .query_row("SELECT count(*) FROM tag", [], |r| r.get(0))
@@ -545,8 +1029,7 @@ mod cache_timing {
 
         let t1 = std::time::Instant::now();
         let hit = super::read_scan("library").expect("just wrote it");
-        let parsed: crate::library::LibrarySnapshot =
-            serde_json::from_str(&hit.payload).unwrap();
+        let parsed: crate::library::LibrarySnapshot = serde_json::from_str(&hit.payload).unwrap();
         let cached_us = t1.elapsed().as_micros();
 
         eprintln!(

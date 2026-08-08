@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -61,22 +61,49 @@ export function EntryDetail({
   const [conflict, setConflict] = useState<string | null>(null);
 
   const dirty = editing && content !== null && draft !== content.raw;
+  const selectedId = useRef<string | null>(null);
+  const editorState = useRef({ dirty, saving, hash: content?.hash ?? null });
+  editorState.current = { dirty, saving, hash: content?.hash ?? null };
 
   useEffect(() => {
     let cancelled = false;
-    setContent(null);
+    const identityChanged = selectedId.current !== entry.id;
+    selectedId.current = entry.id;
+    if (identityChanged) {
+      setContent(null);
+      setDraft("");
+      setEditing(false);
+      setConflict(null);
+    }
     setError(null);
     readEntry(entry.path)
-      .then((c) => !cancelled && setContent(c))
-      .catch(
-        (e) => !cancelled && setError(e instanceof Error ? e.message : String(e)),
-      );
-    setEditing(false);
-    setConflict(null);
+      .then((fresh) => {
+        if (cancelled) return;
+        const current = editorState.current;
+        if (!identityChanged && current.saving) return;
+        if (!identityChanged && current.dirty) {
+          if (current.hash !== fresh.hash) setConflict(fresh.raw);
+          return;
+        }
+        setContent(fresh);
+        setDraft(fresh.raw);
+        setConflict(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : String(e);
+        if (!identityChanged && editorState.current.dirty) {
+          notify("Could not refresh the changed file", { description: message });
+          return;
+        }
+        setError(message);
+      });
     return () => {
       cancelled = true;
     };
-  }, [entry.path]);
+    // A new live snapshot creates a new entry object. Stable IDs distinguish
+    // an external edit from selecting another file, so dirty drafts survive.
+  }, [entry]);
 
   const save = useCallback(
     async (force = false) => {
@@ -107,6 +134,20 @@ export function EntryDetail({
     },
     [content, draft, entry.path],
   );
+
+  const reloadConflict = useCallback(async () => {
+    try {
+      const fresh = await readEntry(entry.path);
+      setContent(fresh);
+      setDraft(fresh.raw);
+      setConflict(null);
+      notify("Reloaded from disk");
+    } catch (e) {
+      notify("Could not reload", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }, [entry.path]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -163,11 +204,7 @@ export function EntryDetail({
           </p>
           <button
             type="button"
-            onClick={() => {
-              setDraft(conflict);
-              setConflict(null);
-              notify("Reloaded from disk");
-            }}
+            onClick={() => void reloadConflict()}
             className="rounded-md border border-border bg-elevated px-2 py-1 text-[10px] font-medium transition-colors hover:border-border-strong"
           >
             Reload

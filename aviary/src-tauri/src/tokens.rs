@@ -22,7 +22,9 @@ pub fn count(text: &str) -> usize {
 
 /// Counts tokens in a file, returning 0 if it cannot be read.
 pub fn count_file(path: &str) -> usize {
-    std::fs::read_to_string(path).map(|s| count(&s)).unwrap_or(0)
+    std::fs::read_to_string(path)
+        .map(|s| count(&s))
+        .unwrap_or(0)
 }
 
 #[cfg(test)]

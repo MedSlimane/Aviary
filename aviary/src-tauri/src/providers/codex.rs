@@ -12,14 +12,24 @@ use super::*;
 
 pub const RUNNER: Runner = Runner::Codex;
 
+pub fn root_at(home: &Path) -> PathBuf {
+    home.join(".codex")
+}
+
 pub fn root() -> Option<PathBuf> {
-    home().map(|h| h.join(".codex"))
+    home().map(|h| root_at(&h))
 }
 
 pub fn scan_user() -> Vec<Entry> {
     let Some(root) = root() else {
         return Vec::new();
     };
+    scan_user_at(&root)
+}
+
+/// Path-injectable counterpart to `scan_user`, used by the live index and its
+/// real-filesystem tests.
+pub fn scan_user_at(root: &Path) -> Vec<Entry> {
     let mut out = Vec::new();
 
     out.extend(scan_skill_dir(
@@ -48,6 +58,34 @@ pub fn scan_user() -> Vec<Entry> {
     }
 
     out
+}
+
+pub fn user_recursive_roots(root: &Path) -> Vec<PathBuf> {
+    ["skills", "prompts"]
+        .into_iter()
+        .map(|name| root.join(name))
+        .collect()
+}
+
+pub fn project_recursive_roots(project: &Path) -> Vec<PathBuf> {
+    vec![project.join(".codex").join("skills")]
+}
+
+pub fn affects_user(root: &Path, path: &Path) -> bool {
+    path == root
+        || path == root.join("AGENTS.md")
+        || user_recursive_roots(root)
+            .into_iter()
+            .any(|candidate| path.starts_with(candidate))
+}
+
+pub fn affects_project(project: &Path, path: &Path) -> bool {
+    path == project
+        || path == project.join(".codex")
+        || path == project.join("AGENTS.md")
+        || project_recursive_roots(project)
+            .into_iter()
+            .any(|candidate| path.starts_with(candidate))
 }
 
 pub fn scan_project(dir: &Path, project: &str) -> Vec<Entry> {

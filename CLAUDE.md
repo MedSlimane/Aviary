@@ -19,7 +19,7 @@ bun install
 bun run tauri dev            # run the app
 
 bunx tsc --noEmit            # typecheck the frontend
-cd src-tauri && cargo test --lib      # 28 tests, run against your real machine
+cd src-tauri && cargo test --lib      # includes real-machine integration tests
 cd src-tauri && cargo build --bins    # app + aviary-media
 
 ./scripts/make-dmg.sh        # universal DMG (see docs/RELEASING.md first)

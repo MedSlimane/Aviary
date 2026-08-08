@@ -25,7 +25,7 @@ Requires Rust (stable) and [Bun](https://bun.sh). macOS only for now.
 
 ```bash
 bunx tsc --noEmit                        # from aviary/
-cd src-tauri && cargo test --lib         # 28 tests
+cd src-tauri && cargo test --lib         # includes real-machine integration tests
 ```
 
 Then **run the app and drive the flow you changed.** Compiling is not evidence.

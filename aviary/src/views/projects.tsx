@@ -131,11 +131,11 @@ export function ProjectsView() {
   const [busy, setBusy] = useState<string | null>(null);
   const [scope, setScope] = useState<Scope>("All");
   const [query, setQuery] = useState("");
-  const { data: library, refresh: refreshLibrary } = useLibrary();
+  const { data: library } = useLibrary();
 
-  const scan = useCallback(async () => {
+  const scan = useCallback(async (fresh = false) => {
     try {
-      const d = await discoverProjects();
+      const d = await discoverProjects(fresh);
       setItems(d.candidates);
       setScannedMs(d.scannedMs);
     } catch (e) {
@@ -172,7 +172,7 @@ export function ProjectsView() {
           description: "Its skills and instructions are now in the library.",
         });
       }
-      await Promise.all([scan(), refreshLibrary()]);
+      await scan();
     } catch (e) {
       notify("Could not update", {
         description: e instanceof Error ? e.message : String(e),
@@ -209,7 +209,7 @@ export function ProjectsView() {
         action={
           <button
             type="button"
-            onClick={() => void scan()}
+            onClick={() => void scan(true)}
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-elevated px-3.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong"
           >
             <HugeiconsIcon icon={RefreshIcon} size={13} strokeWidth={1.8} />

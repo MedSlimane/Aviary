@@ -7,6 +7,7 @@ import {
   Folder01Icon,
   Brain02Icon,
   Album02Icon,
+  PackageIcon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import * as motionReact from "motion/react";
@@ -20,6 +21,7 @@ export const NAV_ITEMS = [
   { id: "chat", label: "Chat", icon: BubbleChatIcon },
   { id: "library", label: "Library", icon: Layers01Icon },
   { id: "projects", label: "Projects", icon: Folder01Icon },
+  { id: "bundles", label: "Bundles", icon: PackageIcon },
   { id: "mcp", label: "MCP Servers", icon: ServerStack01Icon },
   { id: "context", label: "Context", icon: Brain02Icon },
   { id: "inspiration", label: "Inspiration", icon: Album02Icon },

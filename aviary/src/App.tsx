@@ -19,26 +19,20 @@ import { notify } from "@/lib/notify";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   SparklesIcon,
-  Layers01Icon,
   PaintBoardIcon,
   ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
-import { useLibrary } from "@/lib/use-library";
+import { LibraryProvider, useLibrary } from "@/lib/use-library";
 import { HomeView } from "@/views/home";
 import { ChatView } from "@/views/chat";
 import { LibraryView } from "@/views/library";
 import { ProjectsView } from "@/views/projects";
+import { BundlesView } from "@/views/bundles";
 import { McpView } from "@/views/mcp";
 import { ContextView } from "@/views/context";
 import { InspirationView } from "@/views/inspiration";
 import { SettingsView } from "@/views/settings";
-
-const BUNDLE_ITEMS = [
-  "Frontend Review",
-  "Deep Research",
-  "Design Exploration",
-  "Repo Triage",
-];
+import { UpdateProvider } from "@/lib/use-updater";
 
 function Shell() {
   const [route, setRoute] = useState<RouteId>("home");
@@ -76,6 +70,8 @@ function Shell() {
         return <LibraryView />;
       case "projects":
         return <ProjectsView />;
+      case "bundles":
+        return <BundlesView />;
       case "mcp":
         return <McpView />;
       case "context":
@@ -90,7 +86,10 @@ function Shell() {
   // Chat and Library manage their own scrolling internally — Library has two
   // independently scrolling columns, so the shell must not scroll around it.
   const ownsScroll =
-    route === "chat" || route === "library" || route === "projects";
+    route === "chat" ||
+    route === "library" ||
+    route === "projects" ||
+    route === "bundles";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -111,7 +110,7 @@ function Shell() {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         title="Command palette"
-        description="Search across your library, bundles and actions"
+        description="Search across your library and actions"
       >
         <CommandInput placeholder="Search prompts, skills, agents…" />
         <CommandList>
@@ -159,27 +158,6 @@ function Shell() {
 
           <CommandSeparator />
 
-          <CommandGroup heading="BUNDLES">
-            {BUNDLE_ITEMS.map((b) => (
-              <CommandItem
-                key={b}
-                value={`bundle ${b}`}
-                onSelect={() => {
-                  go("chat");
-                  notify(`Launched ${b}`, {
-                    description: "Attached to a new Claude Code session.",
-                  });
-                }}
-              >
-                <HugeiconsIcon icon={Layers01Icon} strokeWidth={1.5} />
-                <span className="min-w-0 flex-1 truncate">{b}</span>
-                <CommandShortcut>⌘↵</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-
-          <CommandSeparator />
-
           <CommandGroup heading="THEME">
             {(Object.keys(THEMES) as ThemeName[]).map((t) => (
               <CommandItem
@@ -200,7 +178,6 @@ function Shell() {
         <CommandFooter>
           <span>{"↵  open"}</span>
           <span>{"↑↓  navigate"}</span>
-          <span>{"⌘↵  launch bundle"}</span>
           <span className="ml-auto">{"esc  close"}</span>
         </CommandFooter>
       </CommandDialog>
@@ -220,7 +197,11 @@ export default function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <Toaster>
-          <Shell />
+          <UpdateProvider>
+            <LibraryProvider>
+              <Shell />
+            </LibraryProvider>
+          </UpdateProvider>
         </Toaster>
       </ThemeProvider>
     </ErrorBoundary>

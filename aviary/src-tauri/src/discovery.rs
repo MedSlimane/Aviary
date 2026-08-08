@@ -27,11 +27,35 @@ const MARKERS: &[(&str, &str, bool)] = &[
 
 /// Never worth descending into — big, and never a project root themselves.
 const PRUNE: &[&str] = &[
-    "node_modules", "target", "dist", "build", "out", ".next", ".nuxt",
-    "vendor", "venv", ".venv", "__pycache__", ".cache", "Library",
-    "Applications", ".Trash", ".git", ".svn", "Pods", "DerivedData",
-    ".gradle", ".cargo", ".rustup", ".npm", ".bun", "go", "Music",
-    "Movies", "Pictures", "Photos Library.photoslibrary",
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "out",
+    ".next",
+    ".nuxt",
+    "vendor",
+    "venv",
+    ".venv",
+    "__pycache__",
+    ".cache",
+    "Library",
+    "Applications",
+    ".Trash",
+    ".git",
+    ".svn",
+    "Pods",
+    "DerivedData",
+    ".gradle",
+    ".cargo",
+    ".rustup",
+    ".npm",
+    ".bun",
+    "go",
+    "Music",
+    "Movies",
+    "Pictures",
+    "Photos Library.photoslibrary",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,8 +101,19 @@ fn roots() -> Vec<PathBuf> {
     };
     let mut out = vec![home.clone()];
     for name in [
-        "Projects", "projects", "work", "Work", "dev", "Developer", "Code",
-        "code", "src", "repos", "Repos", "Documents/GitHub", "git",
+        "Projects",
+        "projects",
+        "work",
+        "Work",
+        "dev",
+        "Developer",
+        "Code",
+        "code",
+        "src",
+        "repos",
+        "Repos",
+        "Documents/GitHub",
+        "git",
     ] {
         let p = home.join(name);
         if p.is_dir() {
@@ -163,7 +198,10 @@ pub fn discover(registered: &[String]) -> DiscoveryResult {
     DiscoveryResult {
         candidates,
         scanned_ms: started.elapsed().as_millis() as u64,
-        roots: roots.iter().map(|r| r.to_string_lossy().to_string()).collect(),
+        roots: roots
+            .iter()
+            .map(|r| r.to_string_lossy().to_string())
+            .collect(),
     }
 }
 

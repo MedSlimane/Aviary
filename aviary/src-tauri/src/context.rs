@@ -4,13 +4,12 @@
 //! exist anywhere else, so its value rests entirely on being *true*. Two rules
 //! follow from that:
 //!
-//! * **Only count what is on disk.** Every token figure here comes from
-//!   tokenising a real file. Nothing is inferred from averages.
+//! * **Only count what has a real basis.** File figures come from tokenising
+//!   actual bytes, and runner figures come from the runner's own accounting.
+//!   No average or fallback number is substituted for missing information.
 //! * **Say so when a cost cannot be known.** A runner's built-in system prompt
-//!   and its MCP tool definitions are not files we can read — the former ships
-//!   inside the binary, the latter arrives only after a server handshake. Those
-//!   layers are reported with `measured: false` and no token figure rather than
-//!   a plausible-looking guess, and the total is scoped to configuration.
+//!   is not a file we can read. MCP definitions require runner inventory, and
+//!   modern runners may defer them. Unknown values are `None`, never zero.
 //!
 //! Load order matters as much as size: both runners read ancestor instruction
 //! files walking *down* toward the working directory, so a stray `CLAUDE.md`
@@ -42,13 +41,21 @@ pub struct Layer {
     pub label: String,
     /// Path on disk, or a summary when the layer aggregates several files.
     pub path: String,
-    pub tokens: usize,
-    /// False when the cost cannot be read from disk. Such layers contribute
-    /// nothing to `total` and the UI must not draw them as a size.
-    pub measured: bool,
+    pub tokens: Option<usize>,
+    /// Where a token figure came from. File counts use Codex's o200k encoding;
+    /// Claude estimates remain labeled until its control channel reports an
+    /// exact value.
+    pub basis: mcp::TokenBasis,
+    /// Whether the source was fully enumerated.
+    pub complete: bool,
+    /// Some runners defer tool definitions. `None` means static discovery
+    /// cannot know whether this layer is currently loaded.
+    pub loaded: Option<bool>,
+    /// Whether a known value contributes to `Resolved::total`.
+    pub included_in_total: bool,
     /// Why a layer is unmeasurable, or extra colour when it is.
     pub note: Option<String>,
-    pub bytes: u64,
+    pub bytes: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -58,6 +65,8 @@ pub struct Resolved {
     pub layers: Vec<Layer>,
     /// Sum over measured layers only.
     pub total: usize,
+    /// False when at least one loaded layer has no token figure.
+    pub total_complete: bool,
     /// Number of layers whose cost could not be read.
     pub unmeasured: usize,
     pub scanned_ms: u64,
@@ -68,15 +77,34 @@ fn file_layer(path: &Path, scope: Scope, label: &str) -> Option<Layer> {
     if !meta.is_file() {
         return None;
     }
-    let text = std::fs::read_to_string(path).ok()?;
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(_) => {
+            return Some(Layer {
+                scope,
+                label: label.to_string(),
+                path: path.to_string_lossy().to_string(),
+                tokens: None,
+                basis: mcp::TokenBasis::Unavailable,
+                complete: false,
+                loaded: None,
+                included_in_total: false,
+                note: Some("The instruction file exists but could not be read".into()),
+                bytes: Some(meta.len()),
+            });
+        }
+    };
     Some(Layer {
         scope,
         label: label.to_string(),
         path: path.to_string_lossy().to_string(),
-        tokens: tokens::count(&text),
-        measured: true,
+        tokens: Some(tokens::count(&text)),
+        basis: mcp::TokenBasis::O200kFileEstimate,
+        complete: true,
+        loaded: Some(true),
+        included_in_total: true,
         note: None,
-        bytes: meta.len(),
+        bytes: Some(meta.len()),
     })
 }
 
@@ -116,6 +144,7 @@ fn skills_layer(skills_root: &Path) -> Option<Layer> {
     let read = std::fs::read_dir(skills_root).ok()?;
 
     let mut count = 0usize;
+    let mut unreadable = 0usize;
     let mut listing = String::new();
 
     for child in read.filter_map(Result::ok) {
@@ -123,19 +152,19 @@ fn skills_layer(skills_root: &Path) -> Option<Layer> {
         if !skill_md.is_file() {
             continue;
         }
+        count += 1;
+        if std::fs::read_to_string(&skill_md).is_err() {
+            unreadable += 1;
+            continue;
+        }
         let parsed = crate::providers::parse_markdown(&skill_md);
-        let name = parsed.name.unwrap_or_else(|| {
-            child
-                .file_name()
-                .to_str()
-                .unwrap_or("untitled")
-                .to_string()
-        });
+        let name = parsed
+            .name
+            .unwrap_or_else(|| child.file_name().to_str().unwrap_or("untitled").to_string());
         listing.push_str(&name);
         listing.push_str(": ");
         listing.push_str(&parsed.description.unwrap_or_default());
         listing.push('\n');
-        count += 1;
     }
 
     if count == 0 {
@@ -146,10 +175,21 @@ fn skills_layer(skills_root: &Path) -> Option<Layer> {
         scope: Scope::Skills,
         label: format!("{count} skills available"),
         path: skills_root.to_string_lossy().to_string(),
-        tokens: tokens::count(&listing),
-        measured: true,
-        note: Some("Names and descriptions only — bodies load when invoked".into()),
-        bytes: listing.len() as u64,
+        tokens: (!listing.is_empty()).then(|| tokens::count(&listing)),
+        basis: if listing.is_empty() {
+            mcp::TokenBasis::Unavailable
+        } else {
+            mcp::TokenBasis::O200kFileEstimate
+        },
+        complete: unreadable == 0,
+        loaded: Some(true),
+        included_in_total: !listing.is_empty(),
+        note: Some(if unreadable == 0 {
+            "Names and descriptions only — bodies load when invoked".into()
+        } else {
+            format!("Names and descriptions only; {unreadable} skill files could not be read")
+        }),
+        bytes: (!listing.is_empty()).then_some(listing.len() as u64),
     })
 }
 
@@ -158,11 +198,17 @@ fn skills_layer(skills_root: &Path) -> Option<Layer> {
 fn memory_layer(cwd: &Path) -> Option<Layer> {
     let home = home()?;
     let slug = cwd.to_string_lossy().replace('/', "-");
-    let dir = home.join(".claude").join("projects").join(slug).join("memory");
+    let dir = home
+        .join(".claude")
+        .join("projects")
+        .join(slug)
+        .join("memory");
 
     let read = std::fs::read_dir(&dir).ok()?;
     let mut text = String::new();
     let mut count = 0usize;
+    let mut readable = 0usize;
+    let mut unreadable = 0usize;
     let mut bytes = 0u64;
 
     for child in read.filter_map(Result::ok) {
@@ -170,10 +216,13 @@ fn memory_layer(cwd: &Path) -> Option<Layer> {
         if path.extension().and_then(|e| e.to_str()) != Some("md") {
             continue;
         }
+        count += 1;
         if let Ok(body) = std::fs::read_to_string(&path) {
             bytes += body.len() as u64;
             text.push_str(&body);
-            count += 1;
+            readable += 1;
+        } else {
+            unreadable += 1;
         }
     }
 
@@ -185,42 +234,119 @@ fn memory_layer(cwd: &Path) -> Option<Layer> {
         scope: Scope::Memory,
         label: format!("{count} memory files"),
         path: dir.to_string_lossy().to_string(),
-        tokens: tokens::count(&text),
-        measured: true,
-        note: None,
-        bytes,
+        tokens: (readable > 0).then(|| tokens::count(&text)),
+        basis: if readable > 0 {
+            mcp::TokenBasis::O200kFileEstimate
+        } else {
+            mcp::TokenBasis::Unavailable
+        },
+        complete: unreadable == 0,
+        loaded: Some(true),
+        included_in_total: readable > 0,
+        note: (unreadable > 0).then(|| format!("{unreadable} memory files could not be read")),
+        bytes: (unreadable == 0).then_some(bytes),
     })
 }
 
 /// MCP tool definitions are real context, but their size is only knowable
 /// after a server handshake returns its schemas. Reported, never guessed.
-fn mcp_layer(runner: Runner, projects: &[(String, PathBuf)]) -> Option<Layer> {
-    let snapshot = mcp::scan(projects);
+fn mcp_layer(runner: Runner, cwd: &Path, projects: &[(String, PathBuf)]) -> Option<Layer> {
+    let snapshot = mcp::scan_for_context(projects, cwd);
+    let cwd = cwd.to_string_lossy().to_string();
     let servers: Vec<&mcp::Server> = snapshot
         .servers
         .iter()
-        .filter(|s| s.enabled && s.runners.contains(&runner))
+        .filter(|server| server.runner == runner)
+        .filter(|server| server.cwd.as_deref() == Some(cwd.as_str()))
+        .filter(|server| {
+            matches!(
+                server.state,
+                mcp::DeclarationState::Enabled | mcp::DeclarationState::Unknown
+            )
+        })
         .collect();
 
     if servers.is_empty() {
         return None;
     }
 
-    let mut names: Vec<&str> = servers.iter().map(|s| s.name.as_str()).collect();
+    mcp_layer_from_servers(&servers)
+}
+
+fn mcp_layer_from_servers(servers: &[&mcp::Server]) -> Option<Layer> {
+    if servers.is_empty() {
+        return None;
+    }
+
+    let mut names: Vec<&str> = servers.iter().map(|server| server.name.as_str()).collect();
     names.sort_unstable();
+
+    let stale = servers.iter().any(|server| server.health.stale);
+    let measured: Vec<&mcp::TokenMeasurement> = servers
+        .iter()
+        .map(|server| &server.health.tools.definitions)
+        .filter(|measurement| measurement.tokens.is_some())
+        .collect();
+    let all_complete = !stale
+        && measured.len() == servers.len()
+        && measured.iter().all(|measurement| measurement.complete);
+    let included: Vec<&mcp::TokenMeasurement> = measured
+        .iter()
+        .copied()
+        .filter(|measurement| measurement.included_in_total)
+        .collect();
+    let tokens = (!stale && !included.is_empty()).then(|| {
+        included
+            .iter()
+            .filter_map(|measurement| measurement.tokens)
+            .sum()
+    });
+    let loaded = if servers
+        .iter()
+        .all(|server| server.health.tools.definitions.loaded == Some(true))
+    {
+        Some(true)
+    } else if servers
+        .iter()
+        .all(|server| server.health.tools.definitions.loaded == Some(false))
+    {
+        Some(false)
+    } else {
+        None
+    };
+    let note = if stale {
+        Some(
+            "The cached tool inventory is stale; run an MCP health check before counting it".into(),
+        )
+    } else if all_complete {
+        Some("Measured from the normalized tool definitions returned by the servers".into())
+    } else if measured.is_empty() {
+        Some(
+            "Static config cannot measure tool definitions; run an MCP health check to load them"
+                .into(),
+        )
+    } else {
+        Some(
+            "Some enabled servers have no complete tool inventory; the shown total is partial"
+                .into(),
+        )
+    };
 
     Some(Layer {
         scope: Scope::Mcp,
         label: format!("{} MCP servers enabled", servers.len()),
         path: names.join(", "),
-        tokens: 0,
-        measured: false,
-        note: Some(
-            "Tool definitions are sent by each server at connection time, so their \
-             size cannot be read from disk"
-                .into(),
-        ),
-        bytes: 0,
+        tokens,
+        basis: if tokens.is_some() {
+            mcp::TokenBasis::O200kSchemaEstimate
+        } else {
+            mcp::TokenBasis::Unavailable
+        },
+        complete: all_complete,
+        loaded,
+        included_in_total: tokens.is_some(),
+        note,
+        bytes: None,
     })
 }
 
@@ -229,23 +355,31 @@ fn system_layer(runner: Runner) -> Layer {
         scope: Scope::System,
         label: format!("{} system prompt", runner.label()),
         path: "built into the CLI".into(),
-        tokens: 0,
-        measured: false,
+        tokens: None,
+        basis: mcp::TokenBasis::Unavailable,
+        complete: false,
+        loaded: Some(true),
+        included_in_total: false,
         note: Some("Ships inside the binary — not a file Aviary can read".into()),
-        bytes: 0,
+        bytes: None,
     }
 }
 
 /// Resolves the full stack for a runner in a working directory.
-pub fn resolve(runner: Runner, cwd: &str, projects: &[(String, PathBuf)]) -> Resolved {
+pub fn resolve(
+    runner: Runner,
+    cwd: &str,
+    projects: &[(String, PathBuf)],
+) -> Result<Resolved, String> {
     let started = std::time::Instant::now();
-    let dir = PathBuf::from(shellexpand(cwd));
+    let dir = mcp::canonical_context_cwd(cwd)?;
     let mut layers = vec![system_layer(runner)];
 
     match runner {
         Runner::ClaudeCode => {
             if let Some(root) = claude_code::root() {
-                if let Some(l) = file_layer(&root.join("CLAUDE.md"), Scope::User, "User instructions")
+                if let Some(l) =
+                    file_layer(&root.join("CLAUDE.md"), Scope::User, "User instructions")
                 {
                     layers.push(l);
                 }
@@ -284,7 +418,7 @@ pub fn resolve(runner: Runner, cwd: &str, projects: &[(String, PathBuf)]) -> Res
                 });
             }
 
-            if let Some(l) = mcp_layer(runner, projects) {
+            if let Some(l) = mcp_layer(runner, &dir, projects) {
                 layers.push(l);
             }
             if let Some(l) = memory_layer(&dir) {
@@ -294,7 +428,8 @@ pub fn resolve(runner: Runner, cwd: &str, projects: &[(String, PathBuf)]) -> Res
 
         Runner::Codex => {
             if let Some(root) = codex::root() {
-                if let Some(l) = file_layer(&root.join("AGENTS.md"), Scope::User, "User instructions")
+                if let Some(l) =
+                    file_layer(&root.join("AGENTS.md"), Scope::User, "User instructions")
                 {
                     layers.push(l);
                 }
@@ -324,39 +459,81 @@ pub fn resolve(runner: Runner, cwd: &str, projects: &[(String, PathBuf)]) -> Res
                 });
             }
 
-            if let Some(l) = mcp_layer(runner, projects) {
+            if let Some(l) = mcp_layer(runner, &dir, projects) {
                 layers.push(l);
             }
         }
     }
 
-    let total = layers.iter().filter(|l| l.measured).map(|l| l.tokens).sum();
-    let unmeasured = layers.iter().filter(|l| !l.measured).count();
+    let total = layers
+        .iter()
+        .filter(|layer| layer.included_in_total)
+        .filter_map(|layer| layer.tokens)
+        .sum();
+    let unmeasured = layers
+        .iter()
+        .filter(|layer| layer.loaded != Some(false) && (layer.tokens.is_none() || !layer.complete))
+        .count();
+    let total_complete = !layers
+        .iter()
+        .any(|layer| layer.loaded == Some(true) && layer.tokens.is_none());
 
-    Resolved {
+    Ok(Resolved {
         runner,
         cwd: dir.to_string_lossy().to_string(),
         layers,
         total,
+        total_complete,
         unmeasured,
         scanned_ms: started.elapsed().as_millis() as u64,
-    }
-}
-
-/// Expands a leading `~` so paths shown in the UI can be typed back in.
-fn shellexpand(path: &str) -> String {
-    match (path.strip_prefix("~/"), home()) {
-        (Some(rest), Some(h)) => h.join(rest).to_string_lossy().to_string(),
-        _ if path == "~" => home()
-            .map(|h| h.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.to_string()),
-        _ => path.to_string(),
-    }
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink;
+
+    fn measured_server(name: &str, tokens: usize) -> mcp::Server {
+        mcp::Server {
+            id: format!("id-{name}"),
+            runner: Runner::Codex,
+            cwd: Some("/work".into()),
+            declaration_id: format!("declaration-{name}"),
+            name: name.into(),
+            source: mcp::Source::User,
+            transport: mcp::TransportSummary::RunnerProvided,
+            state: mcp::DeclarationState::Enabled,
+            shadowed_declaration_ids: Vec::new(),
+            toggle: mcp::ToggleCapability {
+                writable: false,
+                revision: None,
+                shared_project_file: false,
+                unavailable_reason: Some(mcp::ToggleUnavailableReason::RunnerProvidedOnly),
+            },
+            health_revision: format!("revision-{name}"),
+            health: mcp::McpHealth {
+                state: mcp::McpHealthState::Ready,
+                tools: mcp::ToolInventory {
+                    count: Some(1),
+                    definitions: mcp::TokenMeasurement {
+                        tokens: Some(tokens),
+                        basis: mcp::TokenBasis::O200kSchemaEstimate,
+                        complete: true,
+                        loaded: Some(true),
+                        included_in_total: true,
+                    },
+                    checked_at_ms: Some(100),
+                },
+                checked_at_ms: Some(100),
+                expires_at_ms: Some(200),
+                stale: false,
+            },
+        }
+    }
 
     #[test]
     fn ancestors_run_shallowest_first() {
@@ -379,7 +556,7 @@ mod tests {
             return;
         }
 
-        let resolved = resolve(Runner::ClaudeCode, &cwd.to_string_lossy(), &[]);
+        let resolved = resolve(Runner::ClaudeCode, &cwd.to_string_lossy(), &[]).unwrap();
         eprintln!(
             "resolved {} layers in {}ms · total={} unmeasured={}",
             resolved.layers.len(),
@@ -391,11 +568,9 @@ mod tests {
             eprintln!(
                 "  {:<8?} {:>7} {:<44} {}",
                 l.scope,
-                if l.measured {
-                    l.tokens.to_string()
-                } else {
-                    "—".into()
-                },
+                l.tokens
+                    .map(|tokens| tokens.to_string())
+                    .unwrap_or_else(|| "—".into()),
                 l.label,
                 l.path
             );
@@ -405,8 +580,8 @@ mod tests {
         let measured_sum: usize = resolved
             .layers
             .iter()
-            .filter(|l| l.measured)
-            .map(|l| l.tokens)
+            .filter(|layer| layer.included_in_total)
+            .filter_map(|layer| layer.tokens)
             .sum();
         assert_eq!(resolved.total, measured_sum);
 
@@ -418,7 +593,10 @@ mod tests {
                 .iter()
                 .find(|l| l.path == user_md.to_string_lossy())
                 .expect("user CLAUDE.md exists on disk, so it must appear as a layer");
-            assert_eq!(row.tokens, tokens::count_file(&user_md.to_string_lossy()));
+            assert_eq!(
+                row.tokens,
+                Some(tokens::count_file(&user_md.to_string_lossy()))
+            );
         }
     }
 
@@ -429,22 +607,100 @@ mod tests {
                 scope: Scope::System,
                 label: "sys".into(),
                 path: String::new(),
-                tokens: 0,
-                measured: false,
+                tokens: None,
+                basis: mcp::TokenBasis::Unavailable,
+                complete: false,
+                loaded: Some(true),
+                included_in_total: false,
                 note: None,
-                bytes: 0,
+                bytes: None,
             },
             Layer {
                 scope: Scope::User,
                 label: "user".into(),
                 path: String::new(),
-                tokens: 120,
-                measured: true,
+                tokens: Some(120),
+                basis: mcp::TokenBasis::O200kFileEstimate,
+                complete: true,
+                loaded: Some(true),
+                included_in_total: true,
                 note: None,
-                bytes: 0,
+                bytes: Some(0),
             },
         ];
-        let total: usize = layers.iter().filter(|l| l.measured).map(|l| l.tokens).sum();
+        let total: usize = layers
+            .iter()
+            .filter(|layer| layer.included_in_total)
+            .filter_map(|layer| layer.tokens)
+            .sum();
         assert_eq!(total, 120);
+        assert_eq!(layers[0].tokens, None);
+    }
+
+    #[test]
+    fn cached_mcp_definitions_contribute_only_when_complete_and_loaded() {
+        let first = measured_server("first", 12);
+        let second = measured_server("second", 18);
+        let layer = mcp_layer_from_servers(&[&first, &second]).unwrap();
+        assert_eq!(layer.tokens, Some(30));
+        assert_eq!(layer.basis, mcp::TokenBasis::O200kSchemaEstimate);
+        assert!(layer.complete);
+        assert_eq!(layer.loaded, Some(true));
+        assert!(layer.included_in_total);
+
+        let mut missing = measured_server("missing", 7);
+        missing.health = mcp::McpHealth::unchecked();
+        let partial = mcp_layer_from_servers(&[&first, &missing]).unwrap();
+        assert_eq!(partial.tokens, Some(12));
+        assert!(!partial.complete);
+        assert!(partial
+            .note
+            .as_deref()
+            .is_some_and(|note| note.contains("partial")));
+
+        let mut stale = second;
+        stale.health.stale = true;
+        let stale_layer = mcp_layer_from_servers(&[&first, &stale]).unwrap();
+        assert_eq!(stale_layer.tokens, None);
+        assert!(!stale_layer.included_in_total);
+        assert!(stale_layer
+            .note
+            .as_deref()
+            .is_some_and(|note| note.contains("stale")));
+    }
+
+    #[test]
+    fn resolve_rejects_missing_paths_and_regular_files() {
+        let tmp = TempDir::new().unwrap();
+        let missing = tmp.path().join("missing");
+        assert!(resolve(Runner::Codex, &missing.to_string_lossy(), &[]).is_err());
+        let file = tmp.path().join("file.txt");
+        std::fs::write(&file, "fixture").unwrap();
+        assert!(resolve(Runner::Codex, &file.to_string_lossy(), &[]).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_returns_the_canonical_directory_for_symlinks() {
+        let tmp = TempDir::new().unwrap();
+        let real = tmp.path().join("real");
+        let link = tmp.path().join("link");
+        std::fs::create_dir(&real).unwrap();
+        symlink(&real, &link).unwrap();
+        let resolved = resolve(Runner::Codex, &link.to_string_lossy(), &[]).unwrap();
+        assert_eq!(
+            resolved.cwd,
+            std::fs::canonicalize(real).unwrap().to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn tilde_resolves_to_the_real_home_directory() {
+        let Some(home) = home() else { return };
+        let resolved = resolve(Runner::Codex, "~", &[]).unwrap();
+        assert_eq!(
+            resolved.cwd,
+            std::fs::canonicalize(home).unwrap().to_string_lossy()
+        );
     }
 }

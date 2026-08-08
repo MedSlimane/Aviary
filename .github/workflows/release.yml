@@ -1,0 +1,338 @@
+name: Release macOS alpha
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to build (for example v0.1.1-alpha.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aviary-macos-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-14
+    environment: release
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Require a publicly reachable update channel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          visibility="$(gh api "repos/$GITHUB_REPOSITORY" --jq .visibility)"
+          if [[ "$visibility" != "public" ]]; then
+            echo "::error::The updater endpoint is unauthenticated, but $GITHUB_REPOSITORY is $visibility. Make the repository public or move the updater feed and assets to a public release repository before publishing."
+            exit 1
+          fi
+
+      - name: Require release credentials
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in \
+            APPLE_CERTIFICATE \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_ID \
+            APPLE_PASSWORD \
+            APPLE_TEAM_ID \
+            TAURI_SIGNING_PRIVATE_KEY
+          do
+            if [[ -z "${!name:-}" ]]; then
+              missing+=("$name")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing required release secrets: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Validate tag and version sources
+        run: |
+          set -euo pipefail
+          git rev-parse --verify --quiet "refs/tags/$RELEASE_TAG" >/dev/null \
+            || { echo "::error::Release tag does not exist: $RELEASE_TAG"; exit 1; }
+
+          config_version="$(plutil -extract version raw aviary/src-tauri/tauri.conf.json)"
+          package_version="$(plutil -extract version raw aviary/package.json)"
+          cargo_version="$(awk -F'"' '/^version = "/ { print $2; exit }' aviary/src-tauri/Cargo.toml)"
+          tag_version="${RELEASE_TAG#v}"
+          tag_version="${tag_version%%-*}"
+
+          if [[ "$config_version" != "$package_version" || "$config_version" != "$cargo_version" ]]; then
+            echo "::error::Version mismatch: tauri=$config_version package=$package_version cargo=$cargo_version"
+            exit 1
+          fi
+          if [[ "$tag_version" != "$config_version" ]]; then
+            echo "::error::Tag $RELEASE_TAG does not match application version $config_version"
+            exit 1
+          fi
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install Rust targets
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: 1.94.0
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: aviary/src-tauri
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+        working-directory: aviary
+
+      - name: Verify source
+        run: |
+          set -euo pipefail
+          bunx tsc --noEmit
+          cargo test --manifest-path src-tauri/Cargo.toml --lib
+        working-directory: aviary
+
+      - name: Install release verification tools
+        run: |
+          if ! command -v minisign >/dev/null 2>&1; then
+            brew install minisign
+          fi
+
+      - name: Prebuild universal bundled helpers
+        run: |
+          set -euo pipefail
+          mkdir -p target/universal-apple-darwin/release
+          for helper in aviary-media aviary-library aviary-launch; do
+            cargo build --release --bin "$helper" --target aarch64-apple-darwin
+            cargo build --release --bin "$helper" --target x86_64-apple-darwin
+            lipo -create \
+              -output "target/universal-apple-darwin/release/$helper" \
+              "target/aarch64-apple-darwin/release/$helper" \
+              "target/x86_64-apple-darwin/release/$helper"
+            architectures="$(lipo -archs "target/universal-apple-darwin/release/$helper")"
+            [[ " $architectures " == *" arm64 "* && " $architectures " == *" x86_64 "* ]] \
+              || { echo "::error::$helper is not universal: $architectures"; exit 1; }
+          done
+        working-directory: aviary/src-tauri
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/aviary-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/aviary-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 32)"
+
+          printf '%s' "$APPLE_CERTIFICATE" | openssl base64 -d -A > "$certificate_path"
+          chmod 600 "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security default-keychain -s "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -t 3600 -u "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+
+          identity="$(security find-identity -v -p codesigning "$keychain_path" \
+            | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' \
+            | head -n 1)"
+          [[ -n "$identity" ]] \
+            || { echo "::error::The certificate contains no Developer ID Application identity"; exit 1; }
+          echo "APPLE_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "AVIARY_KEYCHAIN_PATH=$keychain_path" >> "$GITHUB_ENV"
+
+      - name: Build signed updater and draft release
+        id: tauri_release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: aviary
+          tauriScript: bun tauri
+          args: --target universal-apple-darwin --bundles app,dmg
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: Aviary __VERSION__ alpha
+          generateReleaseNotes: true
+          releaseDraft: true
+          prerelease: true
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
+
+      # tauri-bundler notarizes and staples the app before packaging, but the
+      # DMG is created afterward. Submit the actual installer separately so
+      # Gatekeeper can validate the container a tester downloads.
+      - name: Notarize and replace draft DMG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          dmg_dir="aviary/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+          dmg_count="$(find "$dmg_dir" -maxdepth 1 -type f -name '*.dmg' | wc -l | tr -d ' ')"
+          [[ "$dmg_count" == "1" ]] \
+            || { echo "::error::Expected one DMG in $dmg_dir, found $dmg_count"; exit 1; }
+          dmg="$(find "$dmg_dir" -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          notarization="$RUNNER_TEMP/aviary-dmg-notarization.json"
+
+          xcrun notarytool submit "$dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --output-format json > "$notarization"
+          status="$(plutil -extract status raw "$notarization")"
+          [[ "$status" == "Accepted" ]] \
+            || { echo "::error::DMG notarization finished with status: $status"; exit 1; }
+
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          gh release upload "$RELEASE_TAG" "$dmg" --clobber
+
+      - name: Download and verify draft artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          verification_root="$RUNNER_TEMP/aviary-draft-artifacts"
+          mkdir -p "$verification_root/macos" "$verification_root/dmg"
+
+          local_app="$(find aviary/src-tauri/target/universal-apple-darwin/release/bundle/macos \
+            -maxdepth 1 -type d -name '*.app' -print -quit)"
+          [[ -n "$local_app" ]] \
+            || { echo "::error::The build produced no macOS application"; exit 1; }
+          ditto "$local_app" "$verification_root/macos/$(basename "$local_app")"
+
+          gh release download "$RELEASE_TAG" \
+            --pattern '*.app.tar.gz' \
+            --pattern '*.app.tar.gz.sig' \
+            --dir "$verification_root/macos"
+          gh release download "$RELEASE_TAG" \
+            --pattern '*.dmg' \
+            --dir "$verification_root/dmg"
+          gh release download "$RELEASE_TAG" \
+            --pattern latest.json \
+            --dir "$verification_root"
+          ./aviary/scripts/verify-release.sh \
+            "$verification_root" \
+            "$verification_root/latest.json"
+          verified_archive="$(find "$verification_root/macos" \
+            -maxdepth 1 -type f -name '*.app.tar.gz' -print -quit)"
+          [[ -n "$verified_archive" && -s "$verified_archive.sig" ]] \
+            || { echo "::error::Verified updater archive or signature is missing"; exit 1; }
+          echo "AVIARY_MANIFEST=$verification_root/latest.json" >> "$GITHUB_ENV"
+          echo "AVIARY_VERIFIED_ARCHIVE=$verified_archive" >> "$GITHUB_ENV"
+
+      # The updater plugin uses the same octet-stream request for GitHub API
+      # asset URLs. Exercise that unauthenticated public path after publication,
+      # then verify the downloaded bytes again before promoting the manifest.
+      - name: Publish and verify public updater download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          verified=0
+          restore_draft() {
+            if [[ "$verified" != "1" ]]; then
+              gh release edit "$RELEASE_TAG" --draft \
+                || echo "::warning::Public archive verification failed and the release could not be returned to draft"
+            fi
+          }
+          trap restore_draft EXIT
+
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
+          public_url="$(jq -er '.platforms["darwin-aarch64"].url' "$AVIARY_MANIFEST")"
+          public_archive="$RUNNER_TEMP/aviary-public-update.app.tar.gz"
+          public_key="$RUNNER_TEMP/aviary-updater.pub"
+
+          curl --fail --location --silent --show-error \
+            --header 'Accept: application/octet-stream' \
+            --retry 5 \
+            --retry-all-errors \
+            --retry-delay 2 \
+            "$public_url" \
+            --output "$public_archive"
+          cmp "$AVIARY_VERIFIED_ARCHIVE" "$public_archive" \
+            || { echo "::error::Manifest URL did not return the verified updater archive"; exit 1; }
+
+          encoded_key="$(plutil -extract plugins.updater.pubkey raw aviary/src-tauri/tauri.conf.json)"
+          printf '%s' "$encoded_key" | openssl base64 -d -A > "$public_key"
+          minisign -Vm "$public_archive" \
+            -x "$AVIARY_VERIFIED_ARCHIVE.sig" \
+            -p "$public_key"
+          verified=1
+
+      - name: Promote manifest to alpha update channel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view updater-alpha >/dev/null 2>&1; then
+            release_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+            [[ -n "$release_commit" ]] \
+              || { echo "::error::Could not resolve release tag $RELEASE_TAG"; exit 1; }
+            gh release create updater-alpha \
+              --target "$release_commit" \
+              --title "Aviary alpha update feed" \
+              --notes "Machine-readable update channel. Installers live on versioned releases." \
+              --prerelease \
+              --latest=false
+          fi
+          gh release upload updater-alpha "$AVIARY_MANIFEST" --clobber
+
+          published_manifest="$RUNNER_TEMP/published-latest.json"
+          curl --fail --location --silent --show-error \
+            --retry 5 \
+            --retry-delay 2 \
+            "https://github.com/MedSlimane/Aviary/releases/download/updater-alpha/latest.json?run=$GITHUB_RUN_ID" \
+            --output "$published_manifest"
+          cmp "$AVIARY_MANIFEST" "$published_manifest" \
+            || { echo "::error::Published updater-alpha manifest differs from the verified manifest"; exit 1; }
+
+      - name: Remove temporary signing keychain
+        if: always()
+        run: |
+          if [[ -n "${AVIARY_KEYCHAIN_PATH:-}" && -f "$AVIARY_KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$AVIARY_KEYCHAIN_PATH" || true
+          fi

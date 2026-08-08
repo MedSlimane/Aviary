@@ -1,158 +1,123 @@
 # Releasing
 
-Cutting a macOS build. Two steps here are non-obvious and both produced a broken
-artefact the first time — they are called out below rather than buried.
+The macOS alpha is built by `.github/workflows/release.yml`. The workflow is
+deliberately fail-closed: it will not publish an unsigned build, an unstapled
+DMG, an updater archive whose signature does not match `latest.json`, or a feed
+that cannot be reached without GitHub credentials.
 
----
+## One-time release setup
 
-## Prerequisites
+The updater has no authenticated GitHub client. Its feed and every asset named
+by that feed therefore have to live in a **public** repository. The workflow
+checks repository visibility before it handles any signing material.
 
-```bash
-brew install create-dmg
-rustup target add x86_64-apple-darwin aarch64-apple-darwin
-gh auth status
-```
+At the time this automation was added, `MedSlimane/Aviary` was private. Before
+the first automated release, either make it public or move both the versioned
+release assets and the `updater-alpha/latest.json` channel to a dedicated public
+release repository, then update the endpoint in `aviary/src-tauri/tauri.conf.json`
+and the repository checks in the workflow and verifier together.
 
----
+Configure a protected GitHub `release` environment with these secrets:
 
-## 1. Verify before you build
+| Secret | Value |
+|---|---|
+| `APPLE_CERTIFICATE` | Base64-encoded Developer ID Application `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | Password used when exporting that `.p12` |
+| `APPLE_ID` | Apple account used by `notarytool` |
+| `APPLE_PASSWORD` | App-specific password for that Apple account |
+| `APPLE_TEAM_ID` | Apple Developer team identifier |
+| `TAURI_SIGNING_PRIVATE_KEY` | Entire private updater-signing key |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key password, only if one was set |
 
-```bash
-cd aviary
-bunx tsc --noEmit
-cd src-tauri && cargo test --lib      # expect 28 passing
-```
+The matching updater public key is embedded in `tauri.conf.json`. Existing
+installations trust that exact key, so do not rotate it as part of an ordinary
+release. The private key must never enter the repository; keep an offline backup
+in addition to the protected GitHub secret. The current release workstation's
+copy is `~/.aviary/keys/aviary-updater.key`, with mode `0600`.
 
-Then run the app and drive the surfaces you changed. A green suite is the floor.
+## Cut a release
 
----
+1. Update the version in all three sources:
 
-## 2. Bump the version
+   - `aviary/src-tauri/tauri.conf.json`
+   - `aviary/package.json`
+   - `aviary/src-tauri/Cargo.toml`
 
-`aviary/src-tauri/tauri.conf.json` → `version`. The DMG script reads it, so the
-filename and volume name follow automatically.
+2. Verify locally:
 
----
+   ```bash
+   cd aviary
+   bun install --frozen-lockfile
+   bunx tsc --noEmit
+   cargo test --manifest-path src-tauri/Cargo.toml --lib
+   cargo build --manifest-path src-tauri/Cargo.toml --bins
+   ```
 
-## 3. Build universal
+   Then run the app and drive every affected flow. Compilation is only the
+   floor for a release.
 
-```bash
-cd aviary
-bun run tauri build --target universal-apple-darwin
-```
+3. Commit the version, create a tag whose numeric prefix exactly matches it,
+   and push the tag. For example, version `0.1.1` may use
+   `v0.1.1-alpha.1`.
 
-> **This fails the first time on a clean target directory.** Tauri lipos only
-> the *main* binary. Aviary ships two — the app and `aviary-media` — and the
-> bundler aborts looking for a universal copy of the second:
->
-> ```
-> Failed to copy binary from ".../universal-apple-darwin/release/aviary-media"
-> ```
->
-> Merge it yourself, then re-run the same command:
->
-> ```bash
-> cd src-tauri
-> lipo -create -output target/universal-apple-darwin/release/aviary-media \
->   target/aarch64-apple-darwin/release/aviary-media \
->   target/x86_64-apple-darwin/release/aviary-media
-> ```
+   A tag push starts the release workflow. `workflow_dispatch` can rebuild an
+   existing tag, but cannot release an untagged revision.
 
-Confirm both binaries are fat:
+4. Watch the `Release macOS alpha` job. It:
 
-```bash
-A=src-tauri/target/universal-apple-darwin/release/bundle/macos/aviary.app
-lipo -archs "$A/Contents/MacOS/aviary"        # x86_64 arm64
-lipo -archs "$A/Contents/MacOS/aviary-media"  # x86_64 arm64
-```
+   - validates the tag and all version sources;
+   - runs the frontend and Rust tests;
+   - builds both architectures of `aviary-media`, `aviary-library`, and
+     `aviary-launch`, then combines each helper into a universal binary;
+   - imports an ephemeral Developer ID keychain;
+   - signs and notarizes the universal app and signs the updater archive;
+   - separately notarizes and staples the final DMG, which is created after the
+     app notarization step;
+   - downloads the draft assets back from GitHub and runs
+     `aviary/scripts/verify-release.sh` against those downloaded bytes;
+   - publishes the versioned prerelease only after every verification passes;
+   - promotes that verified manifest to the fixed `updater-alpha` channel and
+     compares the public download byte-for-byte.
 
----
+The action implementations are pinned to full commit SHAs. Update those pins as
+an explicit dependency review, never incidentally while cutting a release.
 
-## 4. Package
+## What verification proves
 
-```bash
-./scripts/make-dmg.sh
-```
+`verify-release.sh` rejects the release unless:
 
-Produces `aviary/release/Aviary_<version>_universal.dmg` and prints its sha256.
+- the app and all three bundled helpers each contain arm64 and x86_64 slices;
+- the app, every helper, and DMG have Developer ID signatures and secure timestamps;
+- hardened runtime is enabled;
+- Apple stapler validates the app, archive copy and DMG;
+- Gatekeeper accepts a quarantined copy as a downloaded user would receive it;
+- the updater archive passes minisign verification with the embedded public key;
+- `latest.json` names the application version and carries the exact generated
+  archive signature for both macOS architectures.
 
-> **`lipo` strips the linker's ad-hoc signature.** A universal bundle arrives
-> *completely unsigned*, and macOS reports an unsigned app as **damaged** — not
-> merely untrusted. No amount of right-click → Open recovers it. The script
-> re-signs ad-hoc and verifies with `codesign --verify --deep --strict` before
-> packaging. Do not skip it.
+This is stricter than inspecting the local bundle: the final verification uses
+the archive, signature and post-stapling DMG downloaded from the draft release.
 
-With a Developer ID certificate:
+## First updater release
 
-```bash
-SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./scripts/make-dmg.sh
-```
+`v0.1.0-alpha.1` does not contain an updater, so it cannot prove the updater
+path. The first Developer ID build is a manual bootstrap install. Keep it
+available, install it on a clean macOS account, then publish the next patch and
+verify the complete in-app flow:
 
----
+1. the installed build discovers the newer version on launch and on a manual
+   check;
+2. the prompt shows the version and notes;
+3. the signed archive downloads and installs;
+4. Aviary relaunches on the new version without opening GitHub.
 
-## 5. Verify the artefact as a downloader receives it
-
-Not as you built it — with the quarantine flag a browser attaches.
-
-```bash
-cd /tmp && rm -rf vtest && mkdir vtest
-M=$(hdiutil attach ~/personalAi/aviary/release/Aviary_*_universal.dmg \
-      -nobrowse -readonly | grep -o '/Volumes/.*$')
-cp -R "$M/aviary.app" vtest/
-hdiutil detach "$M"
-
-codesign --verify --deep --strict vtest/aviary.app   # must pass
-xattr -w com.apple.quarantine "0081;0;Safari;" vtest/aviary.app
-open vtest/aviary.app                                 # must launch
-```
-
-If `codesign --verify` fails, the DMG is broken — do not upload it.
-
----
-
-## 6. Publish
-
-```bash
-cd ~/personalAi
-git push origin main
-
-gh release create v<version>-alpha.<n> \
-  aviary/release/Aviary_<version>_universal.dmg \
-  --title "Aviary <version>-alpha.<n>" \
-  --notes-file <notes>.md \
-  --prerelease
-```
-
-Then confirm the published bytes match what you tested:
-
-```bash
-gh release download v<version>-alpha.<n> -p "*.dmg" -O /tmp/published.dmg
-shasum -a 256 /tmp/published.dmg
-```
-
----
+P1's updater and notarisation items are only complete after that real
+old-version-to-new-version test and a downloaded DMG passes Gatekeeper. Having
+the workflow code in the repository is necessary, but is not that proof.
 
 ## Release notes
 
-State plainly what does not work. The alpha notes list the missing updater,
-non-persistent chat sessions, absent bundles and unmeasured MCP tokens — an
-alpha tester who discovers a gap you hid stops reporting the ones you did not.
-
-Always include:
-
-- **Install steps for an unnotarised app** — drag to Applications, right-click →
-  Open, and the `xattr -dr com.apple.quarantine` fallback.
-- **The sha256.**
-- **Known gaps**, in plain language.
-
----
-
-## Current signing status
-
-Ad-hoc signed, **not notarised** — there is no Apple Developer certificate on
-the build machine. The app verifies and launches, but Gatekeeper cannot confirm
-who built it, so first launch needs the right-click path.
-
-Notarisation is [P1 on the roadmap](ROADMAP.md). The script already accepts
-`SIGN_IDENTITY`; what remains is `notarytool submit --wait` and `stapler staple`
-in CI.
+State every known gap plainly. Include the tested macOS versions, the sha256 of
+the DMG, and any migration or bootstrap instructions. Once notarised releases
+begin, do not carry forward the old right-click/`xattr` workaround: needing it
+means verification failed and the release must not be published.
