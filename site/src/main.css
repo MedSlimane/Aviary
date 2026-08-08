@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * Aviary landing page.
+ *
+ * Tokens are lifted from the product's own design system (assets/tokens.json)
+ * rather than invented here, so the site and the app cannot drift apart. The
+ * page is dark-locked: Aviary is a dark product, and a light marketing page
+ * followed by a dark app is a bait-and-switch.
+ */
+
+@theme {
+  --color-canvas: #090a0d;
+  --color-surface: #101116;
+  --color-elevated: #181a21;
+  --color-line: #242630;
+  --color-line-strong: #383b48;
+
+  --color-ink: #f4f4f6;
+  --color-ink-2: #b5b7c0;
+  --color-ink-3: #7b7e8a;
+
+  /* Single locked accent. This is the brand's violet, not a default. */
+  --color-violet: #8d7ae8;
+  --color-blue: #75b9f0;
+  --color-teal: #3c9b9a;
+  --color-rose: #b34e78;
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--color-canvas);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* One radius system: 14px surfaces, full-pill interactive. */
+@utility surface {
+  border-radius: 14px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+/*
+ * Scroll reveal. Driven by IntersectionObserver adding `.in`, never a scroll
+ * listener — a listener fires on every frame and janks on mobile.
+ *
+ * Gated behind `.js`, which an inline script in <head> sets before first paint.
+ * Without that gate the content starts at opacity 0 and stays there for anyone
+ * whose JS fails, is disabled, or simply has not run yet — crawlers included.
+ * Progressive enhancement: visible by default, hidden only once something is
+ * guaranteed to reveal it.
+ */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.js .reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-rise {
+  animation: rise 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal,
+  .hero-rise {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    animation: none;
+  }
+}

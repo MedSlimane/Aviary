@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aviary — one place to shape your coding agents</title>
+    <meta
+      name="description"
+      content="A local-first macOS app for the skills, prompts, MCP servers and instruction files that Claude Code and Codex read from. Files stay the source of truth."
+    />
+    <meta name="theme-color" content="#090a0d" />
+
+    <meta property="og:title" content="Aviary" />
+    <meta
+      property="og:description"
+      content="Your agents live in many places. Aviary is the one place you shape them."
+    />
+    <meta property="og:image" content="/assets/hero.jpg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/assets/mark.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/fonts/Geist-Variable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" as="image" href="/assets/hero.jpg" fetchpriority="high" />
+    <link rel="stylesheet" href="/src/main.css" />
+
+    <!--
+      Marks that JS is alive *before* first paint, so the reveal styles only
+      arm themselves when something can actually un-hide the content.
+    -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+  </head>
+
+  <body class="font-sans antialiased">
+    <!-- ============================================================ HERO -->
+    <header id="top" class="relative min-h-[100dvh] overflow-hidden">
+      <img
+        src="/assets/hero.jpg"
+        alt=""
+        fetchpriority="high"
+        class="absolute inset-0 h-full w-full object-cover object-center"
+      />
+      <!-- Legibility scrim. The art is dark bottom-left by design, this only deepens it. -->
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/35 to-canvas/10"
+      ></div>
+      <div class="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-canvas/70 to-transparent"></div>
+
+      <div class="relative mx-auto flex min-h-[100dvh] max-w-[1400px] flex-col px-6 lg:px-10">
+        <!-- Nav: one line, 72px -->
+        <nav class="flex h-[72px] shrink-0 items-center justify-between">
+          <a href="#top" class="flex items-center gap-2.5">
+            <img src="/assets/mark.svg" alt="" class="h-7 w-7" />
+            <span class="text-[17px] font-semibold tracking-tight">Aviary</span>
+          </a>
+
+          <div class="hidden items-center gap-8 md:flex">
+            <a href="#library" class="text-[13px] text-ink-2 transition-colors hover:text-ink">Library</a>
+            <a href="#context" class="text-[13px] text-ink-2 transition-colors hover:text-ink">Context</a>
+            <a href="#agents" class="text-[13px] text-ink-2 transition-colors hover:text-ink">For agents</a>
+            <a
+              href="https://github.com/MedSlimane/Aviary"
+              class="text-[13px] text-ink-2 transition-colors hover:text-ink"
+              >GitHub</a
+            >
+          </div>
+
+          <a
+            href="#download"
+            class="rounded-full bg-ink px-5 py-2 text-[13px] font-semibold text-canvas transition-transform hover:-translate-y-px active:translate-y-0"
+            >Download</a
+          >
+        </nav>
+
+        <!-- Headline sits in the quiet bottom-left of the art -->
+        <div class="hero-rise flex flex-1 items-end pb-20 lg:pb-28">
+          <div class="max-w-[44rem]">
+            <h1
+              class="text-4xl font-medium leading-[1.06] tracking-[-0.03em] md:text-[56px] lg:text-[60px]"
+            >
+              Shape every agent you run,
+              <span class="text-ink-2">from one place.</span>
+            </h1>
+
+            <p class="mt-6 max-w-[33rem] text-[15px] leading-relaxed text-ink-2">
+              Every skill, prompt, MCP server and instruction file Claude Code and
+              Codex read. Files stay the source of truth.
+            </p>
+
+            <div class="mt-9 flex flex-wrap items-center gap-3">
+              <a
+                href="#download"
+                class="rounded-full bg-ink px-6 py-3 text-sm font-semibold text-canvas transition-transform hover:-translate-y-px active:translate-y-0"
+                >Download for macOS</a
+              >
+              <a
+                href="https://github.com/MedSlimane/Aviary"
+                class="rounded-full border border-white/25 bg-white/5 px-6 py-3 text-sm font-semibold text-ink backdrop-blur-sm transition-colors hover:border-white/40"
+                >View source</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ========================================================= PROBLEM -->
+    <section class="border-t border-line px-6 py-28 lg:px-10 lg:py-36">
+      <div class="mx-auto max-w-[1400px]">
+        <p
+          class="reveal max-w-[52rem] text-2xl font-medium leading-[1.35] tracking-[-0.02em] md:text-[34px]"
+        >
+          Coding agents read their behaviour from files scattered across your
+          disk. Skills symlinked into two runners. MCP blocks in three
+          incompatible formats. Instruction files inherited from a parent
+          directory you forgot about.
+          <span class="text-ink-3"
+            >The configuration surface is large, powerful, and completely
+            unmanaged.</span
+          >
+        </p>
+      </div>
+    </section>
+
+    <!-- ========================================================= LIBRARY -->
+    <section id="library" class="border-t border-line px-6 py-24 lg:px-10 lg:py-32">
+      <div class="mx-auto grid max-w-[1400px] items-center gap-12 lg:grid-cols-12 lg:gap-16">
+        <div class="reveal lg:col-span-5">
+          <h2 class="text-3xl font-medium tracking-[-0.02em] md:text-[40px]">
+            One index, both runners
+          </h2>
+          <p class="mt-5 max-w-[34rem] text-[15px] leading-relaxed text-ink-2">
+            Skills are not owned by a runner. They live in a shared pool and get
+            symlinked into each one, so Aviary deduplicates by canonical path and
+            reports every runner that links to an entry.
+          </p>
+          <p class="mt-4 max-w-[34rem] text-[15px] leading-relaxed text-ink-2">
+            Edits are atomic, snapshotted before they land, and refused outright
+            if the file changed underneath you.
+          </p>
+        </div>
+
+        <div class="reveal lg:col-span-7">
+          <img
+            src="/assets/library.jpg"
+            alt="Aviary's library, listing skills and agents grouped by pack with a detail panel open"
+            loading="lazy"
+            width="1400"
+            height="875"
+            class="w-full surface"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= CONTEXT -->
+    <section id="context" class="border-t border-line px-6 py-24 lg:px-10 lg:py-32">
+      <div class="mx-auto grid max-w-[1400px] items-center gap-12 lg:grid-cols-12 lg:gap-16">
+        <div class="reveal order-2 lg:order-1 lg:col-span-7">
+          <img
+            src="/assets/context.jpg"
+            alt="The context view, showing each instruction layer in load order with its token cost"
+            loading="lazy"
+            width="1400"
+            height="875"
+            class="w-full surface"
+          />
+        </div>
+
+        <div class="reveal order-1 lg:order-2 lg:col-span-5">
+          <h2 class="text-3xl font-medium tracking-[-0.02em] md:text-[40px]">
+            Why did it do that?
+          </h2>
+          <p class="mt-5 max-w-[34rem] text-[15px] leading-relaxed text-ink-2">
+            Pick a runner and a directory, and Aviary resolves the whole
+            instruction stack in load order, with token costs counted from the
+            real files.
+          </p>
+          <p class="mt-4 max-w-[34rem] text-[15px] leading-relaxed text-ink-2">
+            Anything it cannot measure from disk says so. A runner's built-in
+            system prompt lives inside the binary, and MCP tool schemas only
+            arrive after a handshake, so both are marked unmeasurable rather than
+            given a plausible number.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ BENTO -->
+    <!-- Breaks the two-split run above. Mixed cell sizes, mixed fills. -->
+    <section class="border-t border-line px-6 py-24 lg:px-10 lg:py-32">
+      <div class="mx-auto max-w-[1400px]">
+        <h2 class="reveal max-w-[30rem] text-3xl font-medium tracking-[-0.02em] md:text-[40px]">
+          Built to stay out of the way
+        </h2>
+
+        <div class="mt-12 grid gap-4 md:grid-cols-3">
+          <!-- Wide cell, art-filled -->
+          <div
+            class="reveal surface relative overflow-hidden p-7 md:col-span-2 md:row-span-2"
+          >
+            <div
+              class="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full opacity-45 blur-3xl"
+              style="background: radial-gradient(circle, #8d7ae8, transparent 70%)"
+            ></div>
+            <div class="relative">
+              <p class="font-mono text-[42px] font-medium leading-none tabular-nums md:text-[64px]">
+                1<span class="text-ink-3">ms</span>
+              </p>
+              <p class="mt-4 max-w-[26rem] text-[15px] leading-relaxed text-ink-2">
+                Launch paints real content instead of a spinner. Scans are cached
+                in SQLite, so a library that took 101ms to walk resolves in one.
+                Measured on a real 117-entry install.
+              </p>
+              <img
+                src="/assets/chat.jpg"
+                alt="Aviary's chat view running a real CLI session"
+                loading="lazy"
+                width="1400"
+                height="875"
+                class="mt-8 w-full rounded-[10px] border border-line"
+              />
+            </div>
+          </div>
+
+          <div class="reveal surface p-7">
+            <h3 class="text-[17px] font-semibold">Runs your real CLI</h3>
+            <p class="mt-3 text-[14px] leading-relaxed text-ink-2">
+              Chat drives <span class="font-mono text-ink-3">claude</span> and
+              <span class="font-mono text-ink-3">codex</span> directly, so tools,
+              MCP and skills all apply. Models and reasoning effort are read off
+              your machine, never hardcoded.
+            </p>
+          </div>
+
+          <div
+            class="reveal surface relative overflow-hidden p-7"
+            style="
+              background:
+                linear-gradient(140deg, rgba(60, 155, 154, 0.16), transparent 60%),
+                #101116;
+            "
+          >
+            <h3 class="text-[17px] font-semibold">Nothing leaves the machine</h3>
+            <p class="mt-3 text-[14px] leading-relaxed text-ink-2">
+              Aviary makes no network requests of its own. There is no telemetry
+              and no account. Secrets in MCP configs are read as key names only,
+              never values.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================== AGENTS -->
+    <section id="agents" class="border-t border-line px-6 py-24 lg:px-10 lg:py-32">
+      <div class="mx-auto max-w-[1400px]">
+        <div class="reveal max-w-[44rem]">
+          <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-3">
+            Aviary serves, it doesn't just show
+          </p>
+          <h2 class="mt-5 text-3xl font-medium tracking-[-0.02em] md:text-[40px]">
+            Your references, reachable from any agent
+          </h2>
+          <p class="mt-5 text-[15px] leading-relaxed text-ink-2">
+            The media board ships as a local MCP server, so anything you curate is
+            queryable from inside Aviary or a bare terminal. It is read-only by
+            construction: no tool it exposes can delete your files.
+          </p>
+        </div>
+
+        <div class="reveal mt-10 max-w-[52rem] overflow-hidden surface">
+          <div class="flex items-center gap-2 border-b border-line px-5 py-3">
+            <span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-line-strong"></span>
+          </div>
+          <div class="overflow-x-auto px-5 py-5">
+            <pre class="font-mono text-[13px] leading-relaxed"><span class="text-ink-3">$</span> claude mcp add aviary-media -- <span class="text-ink-2">/Applications/aviary.app/Contents/MacOS/aviary-media</span>
+
+<span class="text-ink-3">&gt;</span> find that grainy teal gradient from my references
+
+<span class="text-violet">search_media</span>(<span class="text-ink-2">"grainy teal gradient"</span>)
+  <span class="text-ink-3">path:</span>   ~/.aviary/media/a3f9c2…/original.png
+  <span class="text-ink-3">colour:</span> #3c9b9a
+  <span class="text-ink-3">tags:</span>   image, landscape, teal</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= DOWNLOAD -->
+    <section id="download" class="relative overflow-hidden border-t border-line">
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-[420px] opacity-60"
+        style="
+          background:
+            radial-gradient(60% 100% at 30% 100%, rgba(141, 122, 232, 0.35), transparent 70%),
+            radial-gradient(50% 100% at 75% 100%, rgba(179, 78, 120, 0.22), transparent 70%);
+        "
+      ></div>
+
+      <div class="relative mx-auto max-w-[1400px] px-6 py-28 lg:px-10 lg:py-36">
+        <div class="reveal max-w-[40rem]">
+          <h2 class="text-4xl font-medium tracking-[-0.03em] md:text-[52px]">
+            Take it for a run
+          </h2>
+          <p class="mt-5 text-[15px] leading-relaxed text-ink-2">
+            Universal build for Apple Silicon and Intel, macOS 11 and later. It is
+            an early alpha and it is honest about what is missing.
+          </p>
+
+          <div class="mt-9 flex flex-wrap items-center gap-3">
+            <a
+              href="https://github.com/MedSlimane/Aviary/releases/latest"
+              class="rounded-full bg-ink px-6 py-3 text-sm font-semibold text-canvas transition-transform hover:-translate-y-px active:translate-y-0"
+              >Download for macOS</a
+            >
+            <a
+              href="https://github.com/MedSlimane/Aviary/blob/main/docs/ROADMAP.md"
+              class="rounded-full border border-line-strong px-6 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3"
+              >Read the roadmap</a
+            >
+          </div>
+
+          <p class="mt-6 text-[13px] leading-relaxed text-ink-3">
+            Signed ad-hoc but not notarised yet, so macOS asks you to confirm on
+            first launch: right-click the app and choose Open.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================== FOOTER -->
+    <footer class="border-t border-line px-6 py-12 lg:px-10">
+      <div
+        class="mx-auto flex max-w-[1400px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex items-center gap-2.5">
+          <img src="/assets/mark.svg" alt="" class="h-5 w-5 opacity-80" />
+          <span class="text-[13px] text-ink-3">
+            Aviary is a placeholder name and mark.
+          </span>
+        </div>
+        <div class="flex items-center gap-7">
+          <a
+            href="https://github.com/MedSlimane/Aviary"
+            class="text-[13px] text-ink-3 transition-colors hover:text-ink"
+            >GitHub</a
+          >
+          <a
+            href="https://github.com/MedSlimane/Aviary/releases"
+            class="text-[13px] text-ink-3 transition-colors hover:text-ink"
+            >Releases</a
+          >
+          <a
+            href="https://github.com/MedSlimane/Aviary/blob/main/docs/ARCHITECTURE.md"
+            class="text-[13px] text-ink-3 transition-colors hover:text-ink"
+            >Architecture</a
+          >
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
